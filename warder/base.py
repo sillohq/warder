@@ -98,12 +98,18 @@ class Declaration:
         the name of the attribute holding positionally-collected parts —
         ``List(*columns)``, ``Section(*fields)`` — or ``None`` when the
         declaration takes none.
+
+    ``_head``
+        the fields that are positional parameters *before* the parts, as in
+        ``Section(title, *fields)``. They have to be passed positionally when
+        rebuilding or the first part would bind to ``title``.
     """
 
     __slots__ = ("_where",)
 
     _fields: typing.ClassVar[tuple[str, ...]] = ()
     _parts: typing.ClassVar[str | None] = None
+    _head: typing.ClassVar[tuple[str, ...]] = ()
 
     # ------------------------------------------------------------------ build
 
@@ -158,8 +164,9 @@ class Declaration:
                     f"{type(self).__name__}.with_() takes no positional parts."
                 )
             return typing.cast("typing.Self", type(self)(**values))
+        leading = [values.pop(name) for name in self._head]
         collected = tuple(values.pop(self._parts)) + parts
-        return typing.cast("typing.Self", type(self)(*collected, **values))
+        return typing.cast("typing.Self", type(self)(*leading, *collected, **values))
 
     # ------------------------------------------------------------- comparison
 
