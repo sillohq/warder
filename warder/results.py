@@ -36,6 +36,7 @@ class Outcome(Declaration):
 
     __slots__ = ("kind", "message", "options")
     _fields = ("kind", "message", "options")
+    _extras = "options"
 
     KINDS = (
         "notice",
@@ -47,6 +48,10 @@ class Outcome(Declaration):
         "modal",
         "nothing",
     )
+
+    kind: str
+    message: str
+    options: typing.Mapping[str, typing.Any]
 
     def __init__(self, kind: str, message: str = "", **options: typing.Any) -> None:
         if kind not in self.KINDS:

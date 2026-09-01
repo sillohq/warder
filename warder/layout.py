@@ -64,6 +64,15 @@ class Section(Declaration):
     _parts = "fields"
     _head = ("title",)
 
+    title: str
+    fields: tuple[Field, ...]
+    description: str | None
+    collapsed: bool
+    columns: int
+    show: When | None
+    access: Access | None
+    icon: str | None
+
     def __init__(
         self,
         title: str,
@@ -105,8 +114,17 @@ class Panel(Declaration):
 
     __slots__ = ("access", "icon", "kind", "options", "span", "target", "title")
     _fields = ("kind", "title", "target", "options", "access", "icon", "span")
+    _extras = "options"
 
     KINDS = ("fields", "inline", "related", "custom", "text")
+
+    kind: str
+    title: str
+    target: typing.Any
+    options: typing.Mapping[str, typing.Any]
+    access: Access | None
+    icon: str | None
+    span: str
 
     def __init__(
         self,
@@ -270,6 +288,11 @@ class Empty(Declaration):
 
     __slots__ = ("action", "description", "icon", "title")
     _fields = ("title", "description", "action", "icon")
+
+    title: str
+    description: str | None
+    action: Action | None
+    icon: str | None
 
     def __init__(
         self,

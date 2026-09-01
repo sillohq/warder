@@ -130,7 +130,7 @@ def test_shorthands_fill_in_a_format():
     assert Column.avatar("user").format.kind == "avatar"
     assert Column.code("body").format.kind == "code"
     assert Column.duration("took").format.kind == "duration"
-    assert Column.bool("live").format.kind == "bool"
+    assert Column.boolean("live").format.kind == "bool"
     assert Column.text("title", truncate=20).format.option("truncate") == 20
     assert Column.number("n", precision=2).format.option("precision") == 2
 

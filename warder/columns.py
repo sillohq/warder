@@ -64,6 +64,24 @@ class Column(Declaration):
     )
     _fields = __slots__
 
+    name: str | None
+    label: str | None
+    format: Format | None
+    link: bool
+    sort: str | bool | None
+    align: str | None
+    width: int | str | None
+    access: Access | None
+    help: str | None
+    derive: typing.Callable[[typing.Any], typing.Any] | None
+    display: str | None
+    related: bool
+    hidden: bool
+    wrap: bool
+    empty: str
+    sticky: bool
+    toggle: bool
+
     def __init__(
         self,
         name: str | None = None,
@@ -196,10 +214,10 @@ class Column(Declaration):
         )
 
     @classmethod
-    def bool(cls, name: str, **options: typing.Any) -> Column:
+    def boolean(cls, name: str, **options: typing.Any) -> Column:
         return cls(
             name,
-            format=Format.bool(
+            format=Format.boolean(
                 labels=options.pop("labels", ("Yes", "No")),
                 style=options.pop("style", "icon"),
             ),

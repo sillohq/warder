@@ -73,6 +73,25 @@ class List(Declaration):
     _fields = __slots__
     _parts = "columns"
 
+    columns: tuple[Column, ...]
+    filters: tuple[Filter, ...]
+    actions: tuple[Action, ...]
+    row_actions: tuple[Action, ...]
+    sort: Sort | None
+    select_related: tuple[str, ...]
+    prefetch_related: tuple[str, ...]
+    per_page: int
+    per_page_options: tuple[int, ...]
+    empty: Empty | None
+    selectable: bool
+    sticky_header: bool
+    density: str | None
+    totals: typing.Mapping[str, str]
+    group_by: str | None
+    export: bool
+    limit: int | None
+    description: str | None
+
     def __init__(
         self,
         *columns: Column,
@@ -217,6 +236,17 @@ class Form(Declaration):
     _fields = __slots__
     _parts = "sections"
 
+    sections: tuple[Section, ...]
+    submit: str
+    layout: str
+    sidebar: tuple[Section, ...]
+    on_save: typing.Callable[..., typing.Any] | None
+    validate: tuple[typing.Callable[..., typing.Any], ...]
+    deletable: bool
+    cancel: bool
+    description: str | None
+    width: str
+
     def __init__(
         self,
         *parts: Section | Field,
@@ -299,6 +329,13 @@ class Detail(Declaration):
     __slots__ = ("panels", "actions", "title", "subtitle", "layout", "description")
     _fields = __slots__
     _parts = "panels"
+
+    panels: tuple[Panel, ...]
+    actions: tuple[Action, ...]
+    title: str | typing.Callable[[typing.Any], str] | None
+    subtitle: str | typing.Callable[[typing.Any], str] | None
+    layout: str
+    description: str | None
 
     def __init__(
         self,

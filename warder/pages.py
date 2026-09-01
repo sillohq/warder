@@ -53,6 +53,18 @@ class Page(Declaration):
     _fields = __slots__
     _head = ("path", "title", "render")
 
+    path: str
+    title: str
+    render: typing.Callable[..., typing.Any]
+    icon: str | None
+    group: str | None
+    gate: Gate | None
+    component: str | None
+    name: str
+    weight: int
+    description: str | None
+    hidden: bool
+
     def __init__(
         self,
         path: str,
@@ -113,8 +125,18 @@ class Card(Declaration):
         "description",
     )
     _fields = __slots__
+    _extras = "options"
 
     KINDS = ("number", "chart", "table", "list", "custom")
+
+    kind: str
+    title: str
+    load: typing.Callable[..., typing.Any] | None
+    options: typing.Mapping[str, typing.Any]
+    span: int
+    gate: Gate | None
+    icon: str | None
+    description: str | None
 
     def __init__(
         self,
@@ -241,6 +263,11 @@ class Dashboard(Declaration):
     __slots__ = ("cards", "title", "columns", "description")
     _fields = __slots__
     _parts = "cards"
+
+    cards: tuple[Card, ...]
+    title: str
+    columns: int
+    description: str | None
 
     def __init__(
         self,

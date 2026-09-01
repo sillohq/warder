@@ -190,7 +190,8 @@ class Admin:
         nobody may view is not merely disabled in the nav, it is absent.
         """
         buckets: dict[str, list[dict[str, typing.Any]]] = {}
-        for item in (*self.resources, *self.pages):
+        listed: tuple[Resource | Page, ...] = (*self.resources, *self.pages)
+        for item in listed:
             if item.hidden:
                 continue
             if groups is not None and not groups.get(item.key, True):

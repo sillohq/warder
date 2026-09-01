@@ -63,6 +63,22 @@ class Field(Declaration):
     #: perfectly ordinary thing to want on a nullable column.
     UNSET: typing.ClassVar[object] = object()
 
+    name: str
+    label: str | None
+    widget: Widget | None
+    help: str | None
+    placeholder: str | None
+    required: bool | None
+    editable: bool
+    default: typing.Any
+    access: Access | None
+    hidden: bool
+    span: int
+    show: When | None
+    validate: tuple[typing.Callable[[typing.Any], typing.Any], ...]
+    autofocus: bool
+    unit: str | None
+
     def __init__(
         self,
         name: str,

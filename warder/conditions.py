@@ -50,6 +50,11 @@ class When(Declaration):
         "not",
     )
 
+    field: str | None
+    test: str
+    value: typing.Any
+    conditions: tuple[When, ...]
+
     def __init__(
         self,
         field: str | None = None,

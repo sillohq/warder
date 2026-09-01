@@ -68,11 +68,11 @@ def test_a_single_value_for_a_multiple_filter_is_wrapped():
 
 @pytest.mark.parametrize("raw", ["1", "true", "yes", "on", True])
 def test_truthy_spellings(raw):
-    assert Filter.bool("active").apply(Rows(), raw).filters == [{"active": True}]
+    assert Filter.boolean("active").apply(Rows(), raw).filters == [{"active": True}]
 
 
 def test_falsey_spellings():
-    assert Filter.bool("active").apply(Rows(), "no").filters == [{"active": False}]
+    assert Filter.boolean("active").apply(Rows(), "no").filters == [{"active": False}]
 
 
 def test_exists_becomes_an_isnull_lookup():
@@ -209,3 +209,11 @@ def test_relation_filters_carry_their_display():
 def test_repr_names_the_kind():
     assert repr(Filter.text("title")) == "Filter.text('title')"
     assert repr(Filter.toggle("Long", lambda r: r)) == "Filter.toggle('Long')"
+
+
+def test_filter_options_survive_extension():
+    assert Filter.text("title").with_(label="Title").option("lookup") == "icontains"
+
+
+def test_a_filter_lookup_can_be_changed_by_extension():
+    assert Filter.text("title").with_(lookup="iexact").option("lookup") == "iexact"

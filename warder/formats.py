@@ -47,6 +47,7 @@ class Format(Declaration):
 
     __slots__ = ("kind", "options")
     _fields = ("kind", "options")
+    _extras = "options"
 
     KINDS = (
         "text",
@@ -70,6 +71,9 @@ class Format(Declaration):
         "markdown",
         "html",
     )
+
+    kind: str
+    options: typing.Mapping[str, typing.Any]
 
     def __init__(self, kind: str = "text", **options: typing.Any) -> None:
         self._init(kind=one_of("Format kind", kind, self.KINDS), options=options)
@@ -192,7 +196,7 @@ class Format(Declaration):
     # --------------------------------------------------------------- states
 
     @classmethod
-    def bool(
+    def boolean(
         cls, *, labels: tuple[str, str] = ("Yes", "No"), style: str = "icon"
     ) -> Format:
         """True or false, as an icon, a word, or a coloured dot."""

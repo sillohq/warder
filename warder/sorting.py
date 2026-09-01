@@ -48,6 +48,8 @@ class Sort(Declaration):
     _fields = ("terms",)
     _parts = "terms"
 
+    terms: tuple[SortTerm, ...]
+
     def __init__(self, *terms: SortTerm | str | tuple[str, bool]) -> None:
         self._init(terms=tuple(_term(term) for term in terms))
 

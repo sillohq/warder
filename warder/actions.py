@@ -67,6 +67,21 @@ class Action(Declaration):
     )
     _fields = __slots__
 
+    label: str
+    run: typing.Callable[..., typing.Any] | None
+    name: str
+    icon: str | None
+    confirm: str | None
+    access: Access | None
+    gate: Gate | None
+    style: str
+    selection: str
+    place: str
+    fields: tuple[Field, ...]
+    description: str | None
+    keyboard: str | None
+    options: typing.Mapping[str, typing.Any]
+
     def __init__(
         self,
         label: str,

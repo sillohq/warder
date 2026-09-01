@@ -73,6 +73,29 @@ class Resource(Declaration):
     _fields = __slots__
     _head = ("model",)
 
+    model: type
+    label: str
+    plural: str
+    icon: str | None
+    group: str | None
+    slug: str
+    list: List | None
+    form: Form | None
+    detail: Detail | None
+    access: Access | None
+    scope: Scope | None
+    queryset: typing.Callable[..., typing.Any] | None
+    search: tuple[str, ...]
+    sort: Sort | None
+    stem: str
+    description: str | None
+    weight: int
+    creatable: bool
+    editable: bool
+    deletable: bool
+    actions: tuple[Action, ...]
+    hidden: bool
+
     def __init__(
         self,
         model: type,

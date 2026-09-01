@@ -68,6 +68,15 @@ class Session(Declaration):
     )
     _fields = __slots__
 
+    idle: float | None
+    absolute: float | None
+    concurrent: int | None
+    revoke_on_password_change: bool
+    cookie: str
+    secure: bool
+    same_site: str
+    visible: bool
+
     def __init__(
         self,
         *,
@@ -116,6 +125,15 @@ class Login(Declaration):
         "password_reset",
     )
     _fields = __slots__
+
+    throttle: tuple[int, float] | None
+    remember: bool | float
+    providers: tuple[typing.Any, ...]
+    redirect: str
+    message: str | None
+    field: str
+    lockout: float | None
+    password_reset: bool
 
     def __init__(
         self,
@@ -176,6 +194,14 @@ class MFA(Declaration):
 
     METHODS = ("totp", "webauthn", "email")
 
+    method: str
+    required: Gate | bool
+    recovery_codes: int
+    issuer: str | None
+    step_up: tuple[str, ...]
+    grace: float | None
+    remember_device: float | None
+
     def __init__(
         self,
         method: str = "totp",
@@ -229,6 +255,13 @@ class Impersonation(Declaration):
     __slots__ = ("gate", "banner", "maximum", "audit", "readonly", "reason")
     _fields = __slots__
 
+    gate: Gate
+    banner: bool
+    maximum: float | None
+    audit: bool
+    readonly: bool
+    reason: bool
+
     def __init__(
         self,
         *,
@@ -271,6 +304,14 @@ class Audit(Declaration):
         "reads",
     )
     _fields = __slots__
+
+    retain: float | None
+    redact: tuple[str, ...]
+    actions: tuple[str, ...]
+    diff: bool
+    address: bool
+    request_id: bool
+    reads: bool
 
     def __init__(
         self,
@@ -333,6 +374,17 @@ class Auth(Declaration):
     RECORDS: typing.ClassVar[str] = "records"
     #: Resolve nothing; gates and callables only.
     NONE: typing.ClassVar[str] = "none"
+
+    users: type | None
+    backend: typing.Any
+    gate: Gate
+    permissions: str
+    session: Session
+    login: Login
+    mfa: MFA | None
+    impersonation: Impersonation | None
+    audit: Audit
+    roles: tuple[Role, ...]
 
     def __init__(
         self,

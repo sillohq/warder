@@ -31,6 +31,7 @@ class Widget(Declaration):
 
     __slots__ = ("kind", "options")
     _fields = ("kind", "options")
+    _extras = "options"
 
     KINDS = (
         "text",
@@ -63,6 +64,9 @@ class Widget(Declaration):
         "relation",
         "hidden",
     )
+
+    kind: str
+    options: typing.Mapping[str, typing.Any]
 
     def __init__(self, kind: str = "text", **options: typing.Any) -> None:
         self._init(kind=one_of("Widget kind", kind, self.KINDS), options=options)

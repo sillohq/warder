@@ -135,6 +135,10 @@ class Gate(Declaration):
         "not",
     )
 
+    kind: str
+    value: typing.Any
+    gates: tuple[Gate, ...]
+
     def __init__(
         self,
         kind: str = "always",
@@ -287,6 +291,11 @@ class Access(Declaration):
     __slots__ = ("add", "change", "delete", "view")
     _fields = ("view", "add", "change", "delete")
 
+    view: Rule
+    add: Rule
+    change: Rule
+    delete: Rule
+
     def __init__(
         self,
         view: Rule = None,
@@ -388,6 +397,9 @@ class Scope(Declaration):
 
     KINDS = ("all", "none", "filters", "query")
 
+    kind: str
+    value: typing.Any
+
     def __init__(self, kind: str = "all", value: typing.Any = None) -> None:
         if kind not in self.KINDS:
             raise ValueError(f"Scope kind {kind!r} is not one of {self.KINDS}.")
@@ -477,6 +489,15 @@ class Role(Declaration):
 
     __slots__ = ("description", "grants", "inherits", "label", "name")
     _fields = ("name", "grants", "inherits", "label", "description")
+
+    kind: str
+    value: typing.Any
+
+    name: str
+    grants: tuple[str, ...]
+    inherits: tuple[str, ...]
+    label: str
+    description: str | None
 
     def __init__(
         self,

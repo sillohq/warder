@@ -132,6 +132,18 @@ class Theme(Declaration):
     )
     _fields = __slots__
 
+    style: str
+    accent: str | tuple[str, str] | None
+    radius: str | None
+    density: str
+    font: str | None
+    mono: str | None
+    logo: str | None
+    favicon: str | None
+    dark: bool | str
+    tokens: typing.Mapping[str, str | tuple[str, str]]
+    wide: bool
+
     def __init__(
         self,
         style: str = "console",

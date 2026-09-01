@@ -29,7 +29,7 @@ def test_text_aligns_left():
 
 
 def test_booleans_centre():
-    assert Format.bool().align == "center"
+    assert Format.boolean().align == "center"
 
 
 def test_numeric_reports_which_formats_are_compared_digit_by_digit():
@@ -112,3 +112,22 @@ def test_widget_repr_hides_falsey_options():
 def test_widgets_compare_by_value():
     assert Widget.textarea(rows=4) == Widget.textarea(rows=4)
     assert Widget.textarea(rows=4) != Widget.textarea(rows=6)
+
+
+def test_format_options_survive_extension():
+    base = Format.badge({"live": "green"})
+    assert base.with_().option("colors") == {"live": "green"}
+
+
+def test_a_format_option_can_be_changed_by_name():
+    assert Format.badge().with_(default="red").option("default") == "red"
+
+
+def test_widget_options_survive_extension():
+    assert Widget.select(["a"]).with_(multiple=True).choices == (("a", "A"),)
+
+
+def test_the_boolean_shorthand_is_spelled_out():
+    # `bool` as a method name shadows the type inside its own class body.
+    assert Format.boolean().kind == "bool"
+    assert not hasattr(Format, "bool")

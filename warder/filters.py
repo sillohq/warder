@@ -48,6 +48,7 @@ class Filter(Declaration):
 
     __slots__ = ("kind", "label", "name", "narrow", "options")
     _fields = ("kind", "name", "label", "options", "narrow")
+    _extras = "options"
 
     KINDS = (
         "text",
@@ -61,6 +62,12 @@ class Filter(Declaration):
         "custom",
         "toggle",
     )
+
+    kind: str
+    name: str | None
+    label: str | None
+    options: typing.Mapping[str, typing.Any]
+    narrow: typing.Callable[..., typing.Any] | None
 
     def __init__(
         self,
@@ -142,7 +149,7 @@ class Filter(Declaration):
         )
 
     @classmethod
-    def bool(
+    def boolean(
         cls,
         name: str,
         *,
@@ -311,12 +318,15 @@ class Filter(Declaration):
         self, rows: typing.Any, value: typing.Any, *, now: dt.datetime | None = None
     ) -> typing.Any:
         """The narrowing itself, given an already-parsed *value*."""
-        kind, name = self.kind, self.name
+        kind = self.kind
 
-        if kind == "toggle":
-            return self.narrow(rows)
-        if kind == "custom":
-            return self.narrow(rows, value)
+        if kind in ("toggle", "custom"):
+            narrow = typing.cast("typing.Callable[..., typing.Any]", self.narrow)
+            return narrow(rows) if kind == "toggle" else narrow(rows, value)
+
+        # Past the two callable kinds, every remaining kind names a field:
+        # the constructor refuses one without.
+        name = typing.cast(str, self.name)
 
         if kind == "search":
             return _any_of(rows, self.fields, self.option("lookup", "icontains"), value)
@@ -334,8 +344,8 @@ class Filter(Declaration):
             return rows.filter(**{name: value})
         if kind == "number_range":
             return _between(rows, name, value)
-        start, end = preset_range(value, now) if isinstance(value, str) else value
-        return _between(rows, typing.cast(str, name), (start, end))
+        bounds = preset_range(value, now) if isinstance(value, str) else value
+        return _between(rows, name, bounds)
 
     def __repr__(self) -> str:
         head = repr(self.name) if self.name is not None else repr(self.label)

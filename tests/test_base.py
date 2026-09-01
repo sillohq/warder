@@ -175,3 +175,37 @@ def test_freeze_leaves_other_values_alone():
 
 def test_origin_returns_a_location():
     assert origin() is not None
+
+
+class WithExtras(Declaration):
+    __slots__ = ("kind", "options")
+    _fields = ("kind", "options")
+    _extras = "options"
+
+    def __init__(self, kind="text", **options):
+        self._init(kind=kind, options=options)
+
+
+def test_a_catch_all_is_splatted_back_when_rebuilding():
+    # Without _extras, with_() hands the whole mapping to the constructor
+    # under the name `options` and every option is lost.
+    base = WithExtras("badge", colors={"live": "green"})
+    assert base.with_().options == {"colors": {"live": "green"}}
+
+
+def test_an_unknown_keyword_becomes_an_option():
+    assert WithExtras("badge").with_(default="red").options == {"default": "red"}
+
+
+def test_a_known_field_still_wins_over_the_catch_all():
+    assert WithExtras("badge").with_(kind="tags").kind == "tags"
+
+
+def test_the_catch_all_can_be_replaced_wholesale():
+    base = WithExtras("badge", colors={"a": "b"})
+    assert base.with_(options={"c": "d"}).options == {"c": "d"}
+
+
+def test_without_a_catch_all_an_unknown_keyword_still_raises():
+    with pytest.raises(TypeError, match="unexpected keyword"):
+        Plain().with_(nope=1)

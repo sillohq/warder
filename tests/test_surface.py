@@ -103,7 +103,7 @@ def test_every_widget_builds_and_prints(widget):
         Format.rating(),
         Format.date(),
         Format.relative(),
-        Format.bool(),
+        Format.boolean(),
         Format.badge(),
         Format.tags(),
         Format.color(),

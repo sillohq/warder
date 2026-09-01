@@ -37,6 +37,10 @@ import typing
 
 __all__ = ["Declaration", "origin"]
 
+# `typing.Self` is 3.11. A bound TypeVar says the same thing on 3.10, which
+# this package supports.
+Self = typing.TypeVar("Self", bound="Declaration")
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _DEFAULTS: dict[type, dict[str, typing.Any]] = {}
 
@@ -103,13 +107,22 @@ class Declaration:
         the fields that are positional parameters *before* the parts, as in
         ``Section(title, *fields)``. They have to be passed positionally when
         rebuilding or the first part would bind to ``title``.
+
+    ``_extras``
+        the field holding a ``**kwargs`` catch-all — ``Format(kind, **options)``.
+        It has to be splatted back out when rebuilding, or ``with_`` hands the
+        whole mapping to the constructor under the name ``options`` and every
+        option is lost.
     """
 
     __slots__ = ("_where",)
 
+    _where: str | None
+
     _fields: typing.ClassVar[tuple[str, ...]] = ()
     _parts: typing.ClassVar[str | None] = None
     _head: typing.ClassVar[tuple[str, ...]] = ()
+    _extras: typing.ClassVar[str | None] = None
 
     # ------------------------------------------------------------------ build
 
@@ -136,7 +149,7 @@ class Declaration:
 
     # ----------------------------------------------------------------- extend
 
-    def with_(self, *parts: typing.Any, **options: typing.Any) -> typing.Self:
+    def with_(self: Self, *parts: typing.Any, **options: typing.Any) -> Self:
         """A new declaration: *parts* appended, *options* replaced.
 
         ::
@@ -148,9 +161,13 @@ class Declaration:
         Appending rather than replacing is the deliberate choice: a shared base
         exists to be added to, and a caller who wants to start over can build a
         new ``List``.
+
+        On a declaration with a ``**options`` catch-all — ``Format``, ``Widget``,
+        ``Filter`` — an unrecognised keyword is one of those options, so
+        ``Format.badge().with_(default="red")`` works.
         """
         unknown = set(options) - set(self._fields)
-        if unknown:
+        if unknown and self._extras is None:
             raise TypeError(
                 f"{type(self).__name__}.with_() got unexpected keyword"
                 f"{'s' if len(unknown) > 1 else ''} "
@@ -159,16 +176,25 @@ class Declaration:
                 + ", ".join(self._fields)
             )
         values = {name: getattr(self, name) for name in self._fields}
-        values.update(options)
+        extras: dict[str, typing.Any] = (
+            dict(values.pop(self._extras)) if self._extras is not None else {}
+        )
+        for name, value in options.items():
+            if name == self._extras:
+                extras = dict(value)
+            elif name in values:
+                values[name] = value
+            else:
+                extras[name] = value
         if self._parts is None:
             if parts:
                 raise TypeError(
                     f"{type(self).__name__}.with_() takes no positional parts."
                 )
-            return typing.cast("typing.Self", type(self)(**values))
+            return typing.cast("Self", type(self)(**values, **extras))
         leading = [values.pop(name) for name in self._head]
         collected = tuple(values.pop(self._parts)) + parts
-        return typing.cast("typing.Self", type(self)(*leading, *collected, **values))
+        return typing.cast("Self", type(self)(*leading, *collected, **values, **extras))
 
     # ------------------------------------------------------------- comparison
 
@@ -210,7 +236,9 @@ def _constructor_defaults(cls: type) -> dict[str, typing.Any]:
     if cached is None:
         cached = {
             name: parameter.default
-            for name, parameter in inspect.signature(cls.__init__).parameters.items()
+            for name, parameter in inspect.signature(
+                cls.__init__  # type: ignore[misc]
+            ).parameters.items()
             if parameter.default is not inspect.Parameter.empty
         }
         _DEFAULTS[cls] = cached
