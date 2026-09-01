@@ -51,9 +51,23 @@ class List(Declaration):
     """
 
     __slots__ = (
-        "columns", "filters", "actions", "row_actions", "sort", "select_related",
-        "prefetch_related", "per_page", "per_page_options", "empty", "selectable",
-        "sticky_header", "density", "totals", "group_by", "export", "limit",
+        "columns",
+        "filters",
+        "actions",
+        "row_actions",
+        "sort",
+        "select_related",
+        "prefetch_related",
+        "per_page",
+        "per_page_options",
+        "empty",
+        "selectable",
+        "sticky_header",
+        "density",
+        "totals",
+        "group_by",
+        "export",
+        "limit",
         "description",
     )
     _fields = __slots__
@@ -163,7 +177,7 @@ class List(Declaration):
             if column.link:
                 return column
         for column in self.columns:
-            if not column.computed and not column.display:
+            if not column.computed and not column.related:
                 return column
         return self.columns[0] if self.columns else None
 
@@ -189,8 +203,16 @@ class Form(Declaration):
     """
 
     __slots__ = (
-        "sections", "submit", "layout", "sidebar", "on_save", "validate",
-        "deletable", "cancel", "description", "width",
+        "sections",
+        "submit",
+        "layout",
+        "sidebar",
+        "on_save",
+        "validate",
+        "deletable",
+        "cancel",
+        "description",
+        "width",
     )
     _fields = __slots__
     _parts = "sections"
@@ -241,7 +263,9 @@ class Form(Declaration):
         """The fields a submission may set. The rest are dropped, not trusted."""
         return tuple(field for field in self.fields if field.editable)
 
-    def errors(self, values: typing.Mapping[str, typing.Any]) -> dict[str, tuple[str, ...]]:
+    def errors(
+        self, values: typing.Mapping[str, typing.Any]
+    ) -> dict[str, tuple[str, ...]]:
         """Every field's complaints about *values*, keyed by field name.
 
         Field checks only. Whole-form checks in ``validate=`` run afterwards,

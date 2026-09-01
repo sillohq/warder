@@ -33,11 +33,22 @@ _UNSET = object()
 class When(Declaration):
     """A condition over the values of other fields."""
 
-    __slots__ = ("field", "test", "value", "conditions")
+    __slots__ = ("conditions", "field", "test", "value")
     _fields = ("field", "test", "value", "conditions")
 
-    TESTS = ("equals", "not_equals", "any_of", "none_of", "is_true", "is_false",
-             "filled", "empty", "any", "all", "not")
+    TESTS = (
+        "equals",
+        "not_equals",
+        "any_of",
+        "none_of",
+        "is_true",
+        "is_false",
+        "filled",
+        "empty",
+        "any",
+        "all",
+        "not",
+    )
 
     def __init__(
         self,
@@ -69,7 +80,9 @@ class When(Declaration):
         elif empty:
             test = "empty"
         if test not in self.TESTS:
-            raise ValueError(f"When test {test!r} is not one of {', '.join(self.TESTS)}.")
+            raise ValueError(
+                f"When test {test!r} is not one of {', '.join(self.TESTS)}."
+            )
         if test not in ("any", "all", "not") and field is None:
             raise ValueError("When needs a field name — When('status', equals='live').")
         self._init(

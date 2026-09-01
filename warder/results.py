@@ -37,8 +37,16 @@ class Outcome(Declaration):
     __slots__ = ("kind", "message", "options")
     _fields = ("kind", "message", "options")
 
-    KINDS = ("notice", "warning", "problem", "go", "refresh", "download",
-             "modal", "nothing")
+    KINDS = (
+        "notice",
+        "warning",
+        "problem",
+        "go",
+        "refresh",
+        "download",
+        "modal",
+        "nothing",
+    )
 
     def __init__(self, kind: str, message: str = "", **options: typing.Any) -> None:
         if kind not in self.KINDS:
@@ -112,13 +120,21 @@ def download(
     if content is None and url is None:
         raise TypeError("download() needs content= or url=.")
     return Outcome(
-        "download", "", content=content, filename=filename,
-        content_type=content_type, url=url,
+        "download",
+        "",
+        content=content,
+        filename=filename,
+        content_type=content_type,
+        url=url,
     )
 
 
-def modal(component: str, *, props: typing.Mapping[str, typing.Any] | None = None,
-          title: str = "") -> Outcome:
+def modal(
+    component: str,
+    *,
+    props: typing.Mapping[str, typing.Any] | None = None,
+    title: str = "",
+) -> Outcome:
     """Open one of your own components over the list.
 
     For the action whose result is a *screen* — a diff to review, a preview to

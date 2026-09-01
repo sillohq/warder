@@ -44,9 +44,23 @@ class Column(Declaration):
     """One column of a list or one row of a detail panel."""
 
     __slots__ = (
-        "name", "label", "format", "link", "sort", "align", "width",
-        "access", "help", "derive", "display", "hidden", "wrap",
-        "empty", "sticky", "toggle",
+        "name",
+        "label",
+        "format",
+        "link",
+        "sort",
+        "align",
+        "width",
+        "access",
+        "help",
+        "derive",
+        "display",
+        "related",
+        "hidden",
+        "wrap",
+        "empty",
+        "sticky",
+        "toggle",
     )
     _fields = __slots__
 
@@ -64,6 +78,7 @@ class Column(Declaration):
         help: str | None = None,
         derive: typing.Callable[[typing.Any], typing.Any] | None = None,
         display: str | None = None,
+        related: bool = False,
         hidden: bool = False,
         wrap: bool = False,
         empty: str = "—",
@@ -93,6 +108,7 @@ class Column(Declaration):
             help=help,
             derive=derive,
             display=identifier("Column display", display) if display else None,
+            related=related,
             hidden=hidden,
             wrap=wrap,
             empty=empty,
@@ -105,59 +121,90 @@ class Column(Declaration):
     @classmethod
     def text(cls, name: str, **options: typing.Any) -> Column:
         """Plain text. ``truncate=`` and ``mono=`` reach the format."""
-        return cls(name, format=Format.text(
-            truncate=options.pop("truncate", None), mono=options.pop("mono", False)
-        ), **options)
+        return cls(
+            name,
+            format=Format.text(
+                truncate=options.pop("truncate", None), mono=options.pop("mono", False)
+            ),
+            **options,
+        )
 
     @classmethod
     def code(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.code(language=options.pop("language", None)), **options)
+        return cls(
+            name, format=Format.code(language=options.pop("language", None)), **options
+        )
 
     @classmethod
     def number(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.number(
-            precision=options.pop("precision", 0),
-            prefix=options.pop("prefix", ""),
-            suffix=options.pop("suffix", ""),
-            grouping=options.pop("grouping", True),
-        ), **options)
+        return cls(
+            name,
+            format=Format.number(
+                precision=options.pop("precision", 0),
+                prefix=options.pop("prefix", ""),
+                suffix=options.pop("suffix", ""),
+                grouping=options.pop("grouping", True),
+            ),
+            **options,
+        )
 
     @classmethod
     def money(cls, name: str, currency: str = "USD", **options: typing.Any) -> Column:
-        return cls(name, format=Format.money(
-            currency, precision=options.pop("precision", 2)
-        ), **options)
+        return cls(
+            name,
+            format=Format.money(currency, precision=options.pop("precision", 2)),
+            **options,
+        )
 
     @classmethod
     def percent(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.percent(
-            precision=options.pop("precision", 0), of=options.pop("of", 1.0)
-        ), **options)
+        return cls(
+            name,
+            format=Format.percent(
+                precision=options.pop("precision", 0), of=options.pop("of", 1.0)
+            ),
+            **options,
+        )
 
     @classmethod
     def bytes(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.bytes(binary=options.pop("binary", True)), **options)
+        return cls(
+            name, format=Format.bytes(binary=options.pop("binary", True)), **options
+        )
 
     @classmethod
     def duration(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.duration(
-            unit=options.pop("unit", "seconds"), style=options.pop("style", "short")
-        ), **options)
+        return cls(
+            name,
+            format=Format.duration(
+                unit=options.pop("unit", "seconds"), style=options.pop("style", "short")
+            ),
+            **options,
+        )
 
     @classmethod
     def date(cls, name: str, style: str = "date", **options: typing.Any) -> Column:
         """A moment. ``Column.date("created_at", "relative")`` is the common one."""
-        return cls(name, format=Format.date(
-            style, pattern=options.pop("pattern", None),
-            tooltip=options.pop("tooltip", True),
-        ), **options)
+        return cls(
+            name,
+            format=Format.date(
+                style,
+                pattern=options.pop("pattern", None),
+                tooltip=options.pop("tooltip", True),
+            ),
+            **options,
+        )
 
     @classmethod
     def bool(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.bool(
-            labels=options.pop("labels", ("Yes", "No")),
-            style=options.pop("style", "icon"),
-        ), **options)
+        return cls(
+            name,
+            format=Format.bool(
+                labels=options.pop("labels", ("Yes", "No")),
+                style=options.pop("style", "icon"),
+            ),
+            **options,
+        )
 
     @classmethod
     def badge(
@@ -167,40 +214,67 @@ class Column(Declaration):
         **options: typing.Any,
     ) -> Column:
         """A coloured pill. The right shape for a small closed set of states."""
-        return cls(name, format=Format.badge(
-            colors, labels=options.pop("labels", None),
-            default=options.pop("default", "zinc"),
-        ), **options)
+        return cls(
+            name,
+            format=Format.badge(
+                colors,
+                labels=options.pop("labels", None),
+                default=options.pop("default", "zinc"),
+            ),
+            **options,
+        )
 
     @classmethod
     def tags(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.tags(
-            color=options.pop("color", "zinc"), limit=options.pop("limit", 3)
-        ), **options)
+        return cls(
+            name,
+            format=Format.tags(
+                color=options.pop("color", "zinc"), limit=options.pop("limit", 3)
+            ),
+            **options,
+        )
 
     @classmethod
     def image(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.image(
-            size=options.pop("size", 32), rounded=options.pop("rounded", "md")
-        ), sort=options.pop("sort", False), **options)
+        return cls(
+            name,
+            format=Format.image(
+                size=options.pop("size", 32), rounded=options.pop("rounded", "md")
+            ),
+            sort=options.pop("sort", False),
+            **options,
+        )
 
     @classmethod
     def avatar(cls, name: str, **options: typing.Any) -> Column:
         """A picture and a name — what a user column usually wants to be."""
-        return cls(name, format=Format.avatar(
-            size=options.pop("size", 24), fallback=options.pop("fallback", "initials")
-        ), **options)
+        return cls(
+            name,
+            format=Format.avatar(
+                size=options.pop("size", 24),
+                fallback=options.pop("fallback", "initials"),
+            ),
+            **options,
+        )
 
     @classmethod
     def json(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.json(collapsed=options.pop("collapsed", True)),
-                   sort=options.pop("sort", False), **options)
+        return cls(
+            name,
+            format=Format.json(collapsed=options.pop("collapsed", True)),
+            sort=options.pop("sort", False),
+            **options,
+        )
 
     @classmethod
     def progress(cls, name: str, **options: typing.Any) -> Column:
-        return cls(name, format=Format.progress(
-            max=options.pop("max", 100.0), colors=options.pop("colors", None)
-        ), **options)
+        return cls(
+            name,
+            format=Format.progress(
+                max=options.pop("max", 100.0), colors=options.pop("colors", None)
+            ),
+            **options,
+        )
 
     @classmethod
     def relation(
@@ -217,8 +291,14 @@ class Column(Declaration):
         which is the thing you almost always want and the thing a plain
         ``Column("author")`` cannot express.
         """
-        return cls(name, display=display, link=link,
-                   format=options.pop("format", None), **options)
+        return cls(
+            name,
+            display=display,
+            link=link,
+            related=True,
+            format=options.pop("format", None),
+            **options,
+        )
 
     @classmethod
     def compute(
@@ -233,17 +313,30 @@ class Column(Declaration):
         Without one the header is not clickable, which is honest: there is
         nothing the database can order by.
         """
-        return cls(None, label=label, derive=value,
-                   sort=options.pop("sort", False), **options)
+        return cls(
+            None, label=label, derive=value, sort=options.pop("sort", False), **options
+        )
 
     @classmethod
-    def url(cls, label: str, to: typing.Callable[[typing.Any], str],
-             *, text: str | typing.Callable[[typing.Any], str] = "Open",
-             external: bool = False, **options: typing.Any) -> Column:
+    def url(
+        cls,
+        label: str,
+        to: typing.Callable[[typing.Any], str],
+        *,
+        text: str | typing.Callable[[typing.Any], str] = "Open",
+        external: bool = False,
+        **options: typing.Any,
+    ) -> Column:
         """A link built from the row — an invoice PDF, an upstream dashboard."""
         resolve = text if callable(text) else (lambda row: text)
-        return cls(None, label=label, derive=resolve, sort=False,
-                   format=Format.link(to=to, external=external), **options)
+        return cls(
+            None,
+            label=label,
+            derive=resolve,
+            sort=False,
+            format=Format.link(to=to, external=external),
+            **options,
+        )
 
     # ------------------------------------------------------------- questions
 
@@ -285,7 +378,7 @@ class Column(Declaration):
         parts = self.traversal
         if len(parts) > 1:
             return "__".join(parts[:-1])
-        if self.display and self.name:
+        if self.related and self.name:
             return self.name
         return None
 
@@ -331,4 +424,6 @@ class Column(Declaration):
             extras.append(f"sort={self.sort!r}")
         if self.display:
             extras.append(f"display={self.display!r}")
+        elif self.related:
+            extras.append("related=True")
         return f"Column({', '.join([head, *extras])})"

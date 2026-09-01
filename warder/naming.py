@@ -37,6 +37,9 @@ _IRREGULAR = {
     "index": "indexes",
     "matrix": "matrices",
     "analysis": "analyses",
+    # A final z after a vowel doubles. The rule holds for about four words in
+    # ordinary use, so it is a table entry rather than a branch.
+    "quiz": "quizzes",
 }
 
 

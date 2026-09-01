@@ -41,10 +41,26 @@ class Section(Declaration):
     or three fields at the top of a form that need no heading over them.
     """
 
-    __slots__ = ("title", "fields", "description", "collapsed", "columns",
-                 "show", "access", "icon")
-    _fields = ("title", "fields", "description", "collapsed", "columns",
-               "show", "access", "icon")
+    __slots__ = (
+        "access",
+        "collapsed",
+        "columns",
+        "description",
+        "fields",
+        "icon",
+        "show",
+        "title",
+    )
+    _fields = (
+        "title",
+        "fields",
+        "description",
+        "collapsed",
+        "columns",
+        "show",
+        "access",
+        "icon",
+    )
     _parts = "fields"
     _head = ("title",)
 
@@ -87,7 +103,7 @@ class Panel(Declaration):
     themselves and links out to their own screens.
     """
 
-    __slots__ = ("kind", "title", "target", "options", "access", "icon", "span")
+    __slots__ = ("access", "icon", "kind", "options", "span", "target", "title")
     _fields = ("kind", "title", "target", "options", "access", "icon", "span")
 
     KINDS = ("fields", "inline", "related", "custom", "text")
@@ -150,10 +166,16 @@ class Panel(Declaration):
         halves.
         """
         return cls(
-            "inline", title, model,
-            fields=tuple(fields), columns=tuple(columns), editable=editable,
-            extra=non_negative("Panel.inline extra", extra), maximum=maximum,
-            deletable=deletable, sort=sort,
+            "inline",
+            title,
+            model,
+            fields=tuple(fields),
+            columns=tuple(columns),
+            editable=editable,
+            extra=non_negative("Panel.inline extra", extra),
+            maximum=maximum,
+            deletable=deletable,
+            sort=sort,
             via=identifier("Panel.inline via", via) if via else None,
             **options,
         )
@@ -178,16 +200,28 @@ class Panel(Declaration):
         render nine hundred rows on their profile.
         """
         return cls(
-            "related", title, model,
-            columns=tuple(columns), limit=positive("Panel.related limit", limit),
-            sort=sort, via=identifier("Panel.related via", via) if via else None,
-            link=link, **options,
+            "related",
+            title,
+            model,
+            columns=tuple(columns),
+            limit=positive("Panel.related limit", limit),
+            sort=sort,
+            via=identifier("Panel.related via", via) if via else None,
+            link=link,
+            **options,
         )
 
     @classmethod
-    def custom(cls, title: str, component: str, *,
-               props: typing.Mapping[str, typing.Any] | typing.Callable[..., typing.Any] | None = None,
-               **options: typing.Any) -> Panel:
+    def custom(
+        cls,
+        title: str,
+        component: str,
+        *,
+        props: typing.Mapping[str, typing.Any]
+        | typing.Callable[..., typing.Any]
+        | None = None,
+        **options: typing.Any,
+    ) -> Panel:
         """One of your own React components, mounted with props you build.
 
         *props* is either a mapping or a callable ``(ctx, row)`` returning one,
@@ -196,12 +230,22 @@ class Panel(Declaration):
         return cls("custom", title, component, props=props, **options)
 
     @classmethod
-    def text(cls, title: str, render: typing.Callable[[typing.Any], str], *,
-             format: str = "text", **options: typing.Any) -> Panel:
+    def text(
+        cls,
+        title: str,
+        render: typing.Callable[[typing.Any], str],
+        *,
+        format: str = "text",
+        **options: typing.Any,
+    ) -> Panel:
         """Prose built in Python — a summary, a computed explanation."""
-        return cls("text", title, render,
-                   format=one_of("format", format, ("text", "markdown", "html")),
-                   **options)
+        return cls(
+            "text",
+            title,
+            render,
+            format=one_of("format", format, ("text", "markdown", "html")),
+            **options,
+        )
 
     @property
     def key(self) -> str:
@@ -224,7 +268,7 @@ class Empty(Declaration):
     is the first thing a new user of your admin ever reads.
     """
 
-    __slots__ = ("title", "description", "action", "icon")
+    __slots__ = ("action", "description", "icon", "title")
     _fields = ("title", "description", "action", "icon")
 
     def __init__(

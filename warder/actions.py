@@ -50,8 +50,19 @@ class Action(Declaration):
     """A button, and what it runs."""
 
     __slots__ = (
-        "label", "run", "name", "icon", "confirm", "access", "gate",
-        "style", "selection", "place", "fields", "description", "keyboard",
+        "label",
+        "run",
+        "name",
+        "icon",
+        "confirm",
+        "access",
+        "gate",
+        "style",
+        "selection",
+        "place",
+        "fields",
+        "description",
+        "keyboard",
         "options",
     )
     _fields = __slots__
@@ -109,13 +120,25 @@ class Action(Declaration):
         performs, through the same ``delete`` rule in ``Access`` that hides the
         button — so it cannot be granted by adding an action.
         """
-        return cls(label, None, name=options.pop("name", "delete"),
-                   icon=options.pop("icon", "trash"), confirm=confirm,
-                   style=options.pop("style", "danger"), **options)
+        return cls(
+            label,
+            None,
+            name=options.pop("name", "delete"),
+            icon=options.pop("icon", "trash"),
+            confirm=confirm,
+            style=options.pop("style", "danger"),
+            **options,
+        )
 
     @classmethod
-    def export(cls, label: str = "Export CSV", *, format: str = "csv",
-               columns: typing.Sequence[str] = (), **options: typing.Any) -> Action:
+    def export(
+        cls,
+        label: str = "Export CSV",
+        *,
+        format: str = "csv",
+        columns: typing.Sequence[str] = (),
+        **options: typing.Any,
+    ) -> Action:
         """Export the *filtered* set, whether or not anything is selected.
 
         ``selection="none"`` on purpose: exporting means "everything I am
@@ -133,16 +156,21 @@ class Action(Declaration):
         )
 
     @classmethod
-    def link(cls, label: str, to: typing.Callable[[typing.Any], str],
-             **options: typing.Any) -> Action:
+    def link(
+        cls, label: str, to: typing.Callable[[typing.Any], str], **options: typing.Any
+    ) -> Action:
         """A row button that navigates rather than mutating.
 
         *to* is called ``(row)`` and returns a URL.
         """
-        return cls(label, callable_("Action.link to", to),
-                   selection=options.pop("selection", "one"),
-                   place=options.pop("place", "row"),
-                   name=options.pop("name", slug(label)), **options)
+        return cls(
+            label,
+            callable_("Action.link to", to),
+            selection=options.pop("selection", "one"),
+            place=options.pop("place", "row"),
+            name=options.pop("name", slug(label)),
+            **options,
+        )
 
     # -------------------------------------------------------------- questions
 

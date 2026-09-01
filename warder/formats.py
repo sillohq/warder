@@ -49,9 +49,26 @@ class Format(Declaration):
     _fields = ("kind", "options")
 
     KINDS = (
-        "text", "number", "money", "percent", "bytes", "duration",
-        "date", "bool", "badge", "code", "link", "image", "avatar",
-        "json", "tags", "progress", "rating", "color", "markdown", "html",
+        "text",
+        "number",
+        "money",
+        "percent",
+        "bytes",
+        "duration",
+        "date",
+        "bool",
+        "badge",
+        "code",
+        "link",
+        "image",
+        "avatar",
+        "json",
+        "tags",
+        "progress",
+        "rating",
+        "color",
+        "markdown",
+        "html",
     )
 
     def __init__(self, kind: str = "text", **options: typing.Any) -> None:
@@ -114,7 +131,7 @@ class Format(Declaration):
 
     @classmethod
     def percent(cls, *, precision: int = 0, of: float = 1.0) -> Format:
-        """A proportion. ``of=100`` when the column already holds 0–100."""
+        """A proportion. ``of=100`` when the column already holds 0 to 100."""
         return cls("percent", precision=precision, of=of)
 
     @classmethod
@@ -132,7 +149,9 @@ class Format(Declaration):
         )
 
     @classmethod
-    def progress(cls, *, max: float = 100.0, colors: typing.Mapping[str, str] | None = None) -> Format:
+    def progress(
+        cls, *, max: float = 100.0, colors: typing.Mapping[str, str] | None = None
+    ) -> Format:
         """A bar. Reads faster than a percentage when you are scanning for outliers."""
         return cls("progress", max=max, colors=dict(colors or {}))
 
@@ -173,7 +192,9 @@ class Format(Declaration):
     # --------------------------------------------------------------- states
 
     @classmethod
-    def bool(cls, *, labels: tuple[str, str] = ("Yes", "No"), style: str = "icon") -> Format:
+    def bool(
+        cls, *, labels: tuple[str, str] = ("Yes", "No"), style: str = "icon"
+    ) -> Format:
         """True or false, as an icon, a word, or a coloured dot."""
         return cls(
             "bool",
@@ -213,14 +234,22 @@ class Format(Declaration):
     # ----------------------------------------------------------------- rich
 
     @classmethod
-    def link(cls, *, to: typing.Callable[[typing.Any], str] | None = None,
-             external: bool = False) -> Format:
+    def link(
+        cls,
+        *,
+        to: typing.Callable[[typing.Any], str] | None = None,
+        external: bool = False,
+    ) -> Format:
         """A hyperlink. *to* is called ``(row)`` and returns the href."""
         return cls("link", to=to, external=external)
 
     @classmethod
     def image(cls, *, size: int = 32, rounded: str = "md") -> Format:
-        return cls("image", size=size, rounded=one_of("rounded", rounded, ("none", "sm", "md", "full")))
+        return cls(
+            "image",
+            size=size,
+            rounded=one_of("rounded", rounded, ("none", "sm", "md", "full")),
+        )
 
     @classmethod
     def avatar(cls, *, size: int = 24, fallback: str = "initials") -> Format:

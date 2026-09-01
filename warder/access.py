@@ -42,7 +42,7 @@ __all__ = ["ACTIONS", "Access", "Gate", "Role", "Scope"]
 ACTIONS = ("view", "add", "change", "delete")
 
 #: A rule is a fixed answer, a permission name, or something callable.
-Rule = typing.Union[bool, str, typing.Callable[..., typing.Any], None]
+Rule = bool | str | typing.Callable[..., typing.Any] | None
 
 
 async def _resolve(rule: Rule, ctx: typing.Any, row: typing.Any = None) -> bool:
@@ -119,11 +119,21 @@ class Gate(Declaration):
         Gate.any(Gate.role("owner"), Gate.permission("admin.access"))
     """
 
-    __slots__ = ("kind", "value", "gates")
+    __slots__ = ("gates", "kind", "value")
     _fields = ("kind", "value", "gates")
 
-    KINDS = ("always", "never", "staff", "superuser", "permission", "role",
-             "custom", "any", "all", "not")
+    KINDS = (
+        "always",
+        "never",
+        "staff",
+        "superuser",
+        "permission",
+        "role",
+        "custom",
+        "any",
+        "all",
+        "not",
+    )
 
     def __init__(
         self,
@@ -243,9 +253,8 @@ async def _in_role(user: typing.Any, name: str) -> bool:
     if getattr(user, "is_superuser", False):
         return True
     membership = getattr(user, "is_in_group", None)
-    if membership is not None:
-        if await membership(name):
-            return True
+    if membership is not None and await membership(name):
+        return True
     role = getattr(user, "role", None)
     if role is None:
         return False
@@ -275,7 +284,7 @@ class Access(Declaration):
     browser.
     """
 
-    __slots__ = ("view", "add", "change", "delete")
+    __slots__ = ("add", "change", "delete", "view")
     _fields = ("view", "add", "change", "delete")
 
     def __init__(
@@ -343,7 +352,8 @@ class Access(Declaration):
             return self
         return Access(
             *(
-                getattr(parent, action) if getattr(self, action) is None
+                getattr(parent, action)
+                if getattr(self, action) is None
                 else getattr(self, action)
                 for action in ACTIONS
             )
@@ -394,7 +404,9 @@ class Scope(Declaration):
         return cls("none")
 
     @classmethod
-    def by(cls, build: typing.Callable[[typing.Any], typing.Mapping[str, typing.Any]]) -> Scope:
+    def by(
+        cls, build: typing.Callable[[typing.Any], typing.Mapping[str, typing.Any]]
+    ) -> Scope:
         """*build* is called ``(ctx)`` and returns filter keywords."""
         return cls("filters", callable_("Scope.by", build))
 
@@ -463,7 +475,7 @@ class Role(Declaration):
         Role("owner", grants="*")
     """
 
-    __slots__ = ("name", "grants", "inherits", "label", "description")
+    __slots__ = ("description", "grants", "inherits", "label", "name")
     _fields = ("name", "grants", "inherits", "label", "description")
 
     def __init__(

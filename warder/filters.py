@@ -29,19 +29,38 @@ __all__ = ["Filter", "preset_range"]
 
 #: Ranges you can name instead of picking two dates.
 PRESETS = (
-    "today", "yesterday", "7d", "30d", "90d", "quarter", "month",
-    "last_month", "ytd", "12m", "all",
+    "today",
+    "yesterday",
+    "7d",
+    "30d",
+    "90d",
+    "quarter",
+    "month",
+    "last_month",
+    "ytd",
+    "12m",
+    "all",
 )
 
 
 class Filter(Declaration):
     """One control in a list's toolbar."""
 
-    __slots__ = ("kind", "name", "label", "options", "narrow")
+    __slots__ = ("kind", "label", "name", "narrow", "options")
     _fields = ("kind", "name", "label", "options", "narrow")
 
-    KINDS = ("text", "search", "choice", "bool", "date_range", "number_range",
-             "relation", "exists", "custom", "toggle")
+    KINDS = (
+        "text",
+        "search",
+        "choice",
+        "bool",
+        "date_range",
+        "number_range",
+        "relation",
+        "exists",
+        "custom",
+        "toggle",
+    )
 
     def __init__(
         self,
@@ -70,7 +89,9 @@ class Filter(Declaration):
     # ----------------------------------------------------------- constructors
 
     @classmethod
-    def text(cls, name: str, *, lookup: str = "icontains", **options: typing.Any) -> Filter:
+    def text(
+        cls, name: str, *, lookup: str = "icontains", **options: typing.Any
+    ) -> Filter:
         """A text box matching one field.
 
         ``icontains`` by default because that is what someone typing into a
@@ -80,7 +101,9 @@ class Filter(Declaration):
         return cls("text", name, lookup=lookup, **options)
 
     @classmethod
-    def search(cls, *fields: str, label: str = "Search", **options: typing.Any) -> Filter:
+    def search(
+        cls, *fields: str, label: str = "Search", **options: typing.Any
+    ) -> Filter:
         """One box searching several fields at once, OR-ed together.
 
         The box at the top of the list. Distinct from ``Filter.text`` in that
@@ -91,67 +114,133 @@ class Filter(Declaration):
             raise TypeError("Filter.search needs at least one field.")
         for field in fields:
             identifier("Filter.search", field)
-        return cls("search", fields[0], label=label, fields=tuple(fields),
-                   lookup=options.pop("lookup", "icontains"), **options)
+        return cls(
+            "search",
+            fields[0],
+            label=label,
+            fields=tuple(fields),
+            lookup=options.pop("lookup", "icontains"),
+            **options,
+        )
 
     @classmethod
-    def choice(cls, name: str, choices: typing.Iterable[typing.Any] = (), *,
-               multiple: bool = False, **options: typing.Any) -> Filter:
+    def choice(
+        cls,
+        name: str,
+        choices: typing.Iterable[typing.Any] = (),
+        *,
+        multiple: bool = False,
+        **options: typing.Any,
+    ) -> Filter:
         """A fixed set of values. Reads ``choices`` off the column when omitted."""
-        return cls("choice", name, choices=coerce_choices(choices),
-                   multiple=multiple, **options)
+        return cls(
+            "choice",
+            name,
+            choices=coerce_choices(choices),
+            multiple=multiple,
+            **options,
+        )
 
     @classmethod
-    def bool(cls, name: str, *, labels: tuple[str, str] = ("Yes", "No"),
-             **options: typing.Any) -> Filter:
+    def bool(
+        cls,
+        name: str,
+        *,
+        labels: tuple[str, str] = ("Yes", "No"),
+        **options: typing.Any,
+    ) -> Filter:
         """Yes, no, or unset — three states, because "no filter" is one of them."""
         return cls("bool", name, labels=tuple(labels), **options)
 
     @classmethod
-    def date_range(cls, name: str, *, presets: typing.Sequence[str] = ("7d", "30d", "90d"),
-                   **options: typing.Any) -> Filter:
+    def date_range(
+        cls,
+        name: str,
+        *,
+        presets: typing.Sequence[str] = ("7d", "30d", "90d"),
+        **options: typing.Any,
+    ) -> Filter:
         """Two dates, with named shortcuts. See :data:`PRESETS`."""
         for preset in presets:
             one_of("preset", preset, PRESETS)
         return cls("date_range", name, presets=tuple(presets), **options)
 
     @classmethod
-    def number_range(cls, name: str, *, min: float | None = None,
-                     max: float | None = None, step: float = 1,
-                     **options: typing.Any) -> Filter:
+    def number_range(
+        cls,
+        name: str,
+        *,
+        min: float | None = None,
+        max: float | None = None,
+        step: float = 1,
+        **options: typing.Any,
+    ) -> Filter:
         return cls("number_range", name, min=min, max=max, step=step, **options)
 
     @classmethod
-    def relation(cls, name: str, *, display: str | None = None,
-                 search: typing.Sequence[str] = (), multiple: bool = False,
-                 **options: typing.Any) -> Filter:
+    def relation(
+        cls,
+        name: str,
+        *,
+        display: str | None = None,
+        search: typing.Sequence[str] = (),
+        multiple: bool = False,
+        **options: typing.Any,
+    ) -> Filter:
         """A picker over the related table, searched rather than preloaded."""
-        return cls("relation", name, display=display, search=tuple(search),
-                   multiple=multiple, **options)
+        return cls(
+            "relation",
+            name,
+            display=display,
+            search=tuple(search),
+            multiple=multiple,
+            **options,
+        )
 
     @classmethod
-    def exists(cls, name: str, *, labels: tuple[str, str] = ("Set", "Not set"),
-               **options: typing.Any) -> Filter:
+    def exists(
+        cls,
+        name: str,
+        *,
+        labels: tuple[str, str] = ("Set", "Not set"),
+        **options: typing.Any,
+    ) -> Filter:
         """Whether a nullable column has a value."""
         return cls("exists", name, labels=tuple(labels), **options)
 
     @classmethod
-    def toggle(cls, label: str, narrow: typing.Callable[[typing.Any], typing.Any],
-               **options: typing.Any) -> Filter:
+    def toggle(
+        cls,
+        label: str,
+        narrow: typing.Callable[[typing.Any], typing.Any],
+        **options: typing.Any,
+    ) -> Filter:
         """A chip that is on or off. *narrow* is called ``(rows)`` when on."""
         return cls("toggle", None, label=label, narrow=narrow, **options)
 
     @classmethod
-    def custom(cls, label: str, narrow: typing.Callable[..., typing.Any], *,
-               choices: typing.Iterable[typing.Any] = (), **options: typing.Any) -> Filter:
+    def custom(
+        cls,
+        label: str,
+        narrow: typing.Callable[..., typing.Any],
+        *,
+        choices: typing.Iterable[typing.Any] = (),
+        **options: typing.Any,
+    ) -> Filter:
         """Anything else. *narrow* is called ``(rows, value)``.
 
         With *choices* it renders as a select; without, as a text box. The
         escape hatch has the same three parts as every built-in kind, so it is
         not a second code path.
         """
-        return cls("custom", None, label=label, narrow=narrow,
-                   choices=coerce_choices(choices), **options)
+        return cls(
+            "custom",
+            None,
+            label=label,
+            narrow=narrow,
+            choices=coerce_choices(choices),
+            **options,
+        )
 
     # -------------------------------------------------------------- questions
 
@@ -209,16 +298,18 @@ class Filter(Declaration):
             return tuple(raw) if isinstance(raw, (list, tuple)) else (raw,)
         return raw
 
-    def apply(self, rows: typing.Any, raw: typing.Any, *,
-              now: dt.datetime | None = None) -> typing.Any:
+    def apply(
+        self, rows: typing.Any, raw: typing.Any, *, now: dt.datetime | None = None
+    ) -> typing.Any:
         """*rows*, narrowed by this filter's value. Unset leaves *rows* alone."""
         value = self.parse(raw)
         if value is None:
             return rows
         return self.narrow_with(rows, value, now=now)
 
-    def narrow_with(self, rows: typing.Any, value: typing.Any, *,
-                    now: dt.datetime | None = None) -> typing.Any:
+    def narrow_with(
+        self, rows: typing.Any, value: typing.Any, *, now: dt.datetime | None = None
+    ) -> typing.Any:
         """The narrowing itself, given an already-parsed *value*."""
         kind, name = self.kind, self.name
 
@@ -230,7 +321,9 @@ class Filter(Declaration):
         if kind == "search":
             return _any_of(rows, self.fields, self.option("lookup", "icontains"), value)
         if kind == "text":
-            return rows.filter(**{f"{name}__{self.option('lookup', 'icontains')}": value})
+            return rows.filter(
+                **{f"{name}__{self.option('lookup', 'icontains')}": value}
+            )
         if kind == "bool":
             return rows.filter(**{name: value})
         if kind == "exists":
@@ -258,7 +351,9 @@ def _boolean(raw: typing.Any) -> bool:
     return str(raw).strip().lower() in ("1", "true", "yes", "on", "t")
 
 
-def _pair(raw: typing.Any, cast: typing.Callable[[str], typing.Any]) -> tuple[typing.Any, typing.Any] | None:
+def _pair(
+    raw: typing.Any, cast: typing.Callable[[str], typing.Any]
+) -> tuple[typing.Any, typing.Any] | None:
     """``"10..50"`` or ``["10", "50"]`` → a two-tuple, either end possibly ``None``."""
     parts = raw.split("..") if isinstance(raw, str) else list(raw)
     if len(parts) != 2:
@@ -272,7 +367,9 @@ def _date(text: str) -> dt.date:
     return dt.date.fromisoformat(text)
 
 
-def _between(rows: typing.Any, name: str, bounds: tuple[typing.Any, typing.Any]) -> typing.Any:
+def _between(
+    rows: typing.Any, name: str, bounds: tuple[typing.Any, typing.Any]
+) -> typing.Any:
     low, high = bounds
     if low is not None:
         rows = rows.filter(**{f"{name}__gte": low})
@@ -281,8 +378,9 @@ def _between(rows: typing.Any, name: str, bounds: tuple[typing.Any, typing.Any])
     return rows
 
 
-def _any_of(rows: typing.Any, fields: typing.Sequence[str], lookup: str,
-            value: typing.Any) -> typing.Any:
+def _any_of(
+    rows: typing.Any, fields: typing.Sequence[str], lookup: str, value: typing.Any
+) -> typing.Any:
     """OR the same term across several columns, using ``sillo.record``'s ``Q``.
 
     Imported here rather than at module scope: the declarations must be usable
@@ -297,7 +395,9 @@ def _any_of(rows: typing.Any, fields: typing.Sequence[str], lookup: str,
     return rows.filter(query)
 
 
-def preset_range(preset: str, now: dt.datetime | None = None) -> tuple[dt.date | None, dt.date | None]:
+def preset_range(
+    preset: str, now: dt.datetime | None = None
+) -> tuple[dt.date | None, dt.date | None]:
     """The two dates a named preset stands for, inclusive at both ends.
 
     ``"all"`` is ``(None, None)`` rather than an error: it is how a preset
@@ -326,4 +426,6 @@ def preset_range(preset: str, now: dt.datetime | None = None) -> tuple[dt.date |
         return (today.replace(month=start_month, day=1), today)
     if preset == "ytd":
         return (today.replace(month=1, day=1), today)
-    raise ValueError(f"Unknown date preset {preset!r}. Use one of: {', '.join(PRESETS)}.")
+    raise ValueError(
+        f"Unknown date preset {preset!r}. Use one of: {', '.join(PRESETS)}."
+    )

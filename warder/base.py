@@ -130,7 +130,9 @@ class Declaration:
         )
 
     def __delattr__(self, name: str) -> typing.NoReturn:
-        raise AttributeError(f"{type(self).__name__} is a value and cannot be modified.")
+        raise AttributeError(
+            f"{type(self).__name__} is a value and cannot be modified."
+        )
 
     # ----------------------------------------------------------------- extend
 
@@ -173,9 +175,7 @@ class Declaration:
     def __eq__(self, other: object) -> bool:
         if type(other) is not type(self):
             return NotImplemented
-        return all(
-            getattr(self, name) == getattr(other, name) for name in self._fields
-        )
+        return all(getattr(self, name) == getattr(other, name) for name in self._fields)
 
     __hash__ = None  # type: ignore[assignment]
 

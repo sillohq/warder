@@ -33,10 +33,34 @@ class Widget(Declaration):
     _fields = ("kind", "options")
 
     KINDS = (
-        "text", "textarea", "markdown", "rich", "code", "password", "slug",
-        "email", "url", "phone", "number", "money", "range", "select",
-        "radio", "checkbox", "switch", "tags", "date", "datetime", "time",
-        "duration", "file", "image", "json", "keyvalue", "color", "relation",
+        "text",
+        "textarea",
+        "markdown",
+        "rich",
+        "code",
+        "password",
+        "slug",
+        "email",
+        "url",
+        "phone",
+        "number",
+        "money",
+        "range",
+        "select",
+        "radio",
+        "checkbox",
+        "switch",
+        "tags",
+        "date",
+        "datetime",
+        "time",
+        "duration",
+        "file",
+        "image",
+        "json",
+        "keyvalue",
+        "color",
+        "relation",
         "hidden",
     )
 
@@ -56,14 +80,19 @@ class Widget(Declaration):
         return cls("textarea", rows=rows, autosize=autosize)
 
     @classmethod
-    def markdown(cls, *, height: int = 320, preview: bool = True,
-                 toolbar: bool = True) -> Widget:
+    def markdown(
+        cls, *, height: int = 320, preview: bool = True, toolbar: bool = True
+    ) -> Widget:
         """A Markdown editor with a live preview."""
         return cls("markdown", height=height, preview=preview, toolbar=toolbar)
 
     @classmethod
-    def rich(cls, *, height: int = 320,
-             tools: typing.Sequence[str] = ("bold", "italic", "link", "list", "heading")) -> Widget:
+    def rich(
+        cls,
+        *,
+        height: int = 320,
+        tools: typing.Sequence[str] = ("bold", "italic", "link", "list", "heading"),
+    ) -> Widget:
         """A rich-text editor that stores sanitised HTML."""
         return cls("rich", height=height, tools=tuple(tools))
 
@@ -101,8 +130,14 @@ class Widget(Declaration):
     # -------------------------------------------------------------- numbers
 
     @classmethod
-    def number(cls, *, min: float | None = None, max: float | None = None,
-               step: float = 1, precision: int | None = None) -> Widget:
+    def number(
+        cls,
+        *,
+        min: float | None = None,
+        max: float | None = None,
+        step: float = 1,
+        precision: int | None = None,
+    ) -> Widget:
         return cls("number", min=min, max=max, step=step, precision=precision)
 
     @classmethod
@@ -140,8 +175,9 @@ class Widget(Declaration):
         )
 
     @classmethod
-    def radio(cls, choices: typing.Iterable[typing.Any] = (), *,
-              inline: bool = False) -> Widget:
+    def radio(
+        cls, choices: typing.Iterable[typing.Any] = (), *, inline: bool = False
+    ) -> Widget:
         """Every option visible at once. Right below about five options."""
         return cls("radio", choices=coerce_choices(choices), inline=inline)
 
@@ -156,8 +192,13 @@ class Widget(Declaration):
         return cls("switch", labels=tuple(labels) if labels else None)
 
     @classmethod
-    def tags(cls, *, choices: typing.Iterable[typing.Any] = (),
-             create: bool = True, limit: int | None = None) -> Widget:
+    def tags(
+        cls,
+        *,
+        choices: typing.Iterable[typing.Any] = (),
+        create: bool = True,
+        limit: int | None = None,
+    ) -> Widget:
         """Free-form labels. ``create=False`` restricts to *choices*."""
         return cls("tags", choices=coerce_choices(choices), create=create, limit=limit)
 
@@ -183,18 +224,30 @@ class Widget(Declaration):
     # ----------------------------------------------------------------- data
 
     @classmethod
-    def file(cls, *, accept: typing.Sequence[str] = (), multiple: bool = False,
-             max_size: str | None = None) -> Widget:
+    def file(
+        cls,
+        *,
+        accept: typing.Sequence[str] = (),
+        multiple: bool = False,
+        max_size: str | None = None,
+    ) -> Widget:
         """An upload, stored through ``sillo.storage``."""
         return cls("file", accept=tuple(accept), multiple=multiple, max_size=max_size)
 
     @classmethod
-    def image(cls, *, aspect: str | None = None, max_size: str | None = None,
-              preview: bool = True) -> Widget:
+    def image(
+        cls,
+        *,
+        aspect: str | None = None,
+        max_size: str | None = None,
+        preview: bool = True,
+    ) -> Widget:
         return cls("image", aspect=aspect, max_size=max_size, preview=preview)
 
     @classmethod
-    def json(cls, *, height: int = 240, schema: typing.Mapping[str, typing.Any] | None = None) -> Widget:
+    def json(
+        cls, *, height: int = 240, schema: typing.Mapping[str, typing.Any] | None = None
+    ) -> Widget:
         """Raw JSON, validated in the browser before it is sent."""
         return cls("json", height=height, schema=dict(schema or {}))
 
@@ -251,6 +304,8 @@ class Widget(Declaration):
         return tuple(self.options.get("choices") or ())
 
     def __repr__(self) -> str:
-        shown = {k: v for k, v in self.options.items() if v not in (None, "", (), {}, False)}
+        shown = {
+            k: v for k, v in self.options.items() if v not in (None, "", (), {}, False)
+        }
         inner = ", ".join(f"{k}={v!r}" for k, v in shown.items())
         return f"Widget({self.kind!r}{', ' + inner if inner else ''})"

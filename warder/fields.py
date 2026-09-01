@@ -41,9 +41,21 @@ class Field(Declaration):
     """One input."""
 
     __slots__ = (
-        "name", "label", "widget", "help", "placeholder", "required",
-        "editable", "default", "access", "hidden", "span", "show",
-        "validate", "autofocus", "unit",
+        "name",
+        "label",
+        "widget",
+        "help",
+        "placeholder",
+        "required",
+        "editable",
+        "default",
+        "access",
+        "hidden",
+        "span",
+        "show",
+        "validate",
+        "autofocus",
+        "unit",
     )
     _fields = __slots__
 
@@ -106,32 +118,52 @@ class Field(Declaration):
 
     @classmethod
     def text(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.text(
-            prefix=options.pop("prefix", ""), suffix=options.pop("suffix", ""),
-            mono=options.pop("mono", False),
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.text(
+                prefix=options.pop("prefix", ""),
+                suffix=options.pop("suffix", ""),
+                mono=options.pop("mono", False),
+            ),
+            **options,
+        )
 
     @classmethod
     def textarea(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.textarea(
-            rows=options.pop("rows", 4), autosize=options.pop("autosize", True)
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.textarea(
+                rows=options.pop("rows", 4), autosize=options.pop("autosize", True)
+            ),
+            **options,
+        )
 
     @classmethod
     def markdown(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.markdown(
-            height=options.pop("height", 320), preview=options.pop("preview", True)
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.markdown(
+                height=options.pop("height", 320), preview=options.pop("preview", True)
+            ),
+            **options,
+        )
 
     @classmethod
     def rich(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.rich(height=options.pop("height", 320)), **options)
+        return cls(
+            name, widget=Widget.rich(height=options.pop("height", 320)), **options
+        )
 
     @classmethod
     def code(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.code(
-            language=options.pop("language", "json"), height=options.pop("height", 240)
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.code(
+                language=options.pop("language", "json"),
+                height=options.pop("height", 240),
+            ),
+            **options,
+        )
 
     @classmethod
     def password(cls, name: str = "password", **options: typing.Any) -> Field:
@@ -141,52 +173,78 @@ class Field(Declaration):
         it means "leave the existing hash alone", which is the only behaviour
         that makes an edit form usable.
         """
-        return cls(name, widget=Widget.password(
-            confirm=options.pop("confirm", False),
-            strength=options.pop("strength", True),
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.password(
+                confirm=options.pop("confirm", False),
+                strength=options.pop("strength", True),
+            ),
+            **options,
+        )
 
     @classmethod
-    def slug(cls, name: str = "slug", *, source: str | None = None,
-             **options: typing.Any) -> Field:
+    def slug(
+        cls, name: str = "slug", *, source: str | None = None, **options: typing.Any
+    ) -> Field:
         """A URL slug that follows *source* until someone edits it by hand."""
         return cls(name, widget=Widget.slug(source=source), **options)
 
     @classmethod
     def number(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.number(
-            min=options.pop("min", None), max=options.pop("max", None),
-            step=options.pop("step", 1), precision=options.pop("precision", None),
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.number(
+                min=options.pop("min", None),
+                max=options.pop("max", None),
+                step=options.pop("step", 1),
+                precision=options.pop("precision", None),
+            ),
+            **options,
+        )
 
     @classmethod
     def money(cls, name: str, currency: str = "USD", **options: typing.Any) -> Field:
         return cls(name, widget=Widget.money(currency), **options)
 
     @classmethod
-    def select(cls, name: str, choices: typing.Iterable[typing.Any] = (),
-               **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.select(
-            choices, multiple=options.pop("multiple", False),
-            searchable=options.pop("searchable", None),
-        ), **options)
+    def select(
+        cls, name: str, choices: typing.Iterable[typing.Any] = (), **options: typing.Any
+    ) -> Field:
+        return cls(
+            name,
+            widget=Widget.select(
+                choices,
+                multiple=options.pop("multiple", False),
+                searchable=options.pop("searchable", None),
+            ),
+            **options,
+        )
 
     @classmethod
-    def radio(cls, name: str, choices: typing.Iterable[typing.Any] = (),
-              **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.radio(
-            choices, inline=options.pop("inline", False)
-        ), **options)
+    def radio(
+        cls, name: str, choices: typing.Iterable[typing.Any] = (), **options: typing.Any
+    ) -> Field:
+        return cls(
+            name,
+            widget=Widget.radio(choices, inline=options.pop("inline", False)),
+            **options,
+        )
 
     @classmethod
     def switch(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.switch(labels=options.pop("labels", None)), **options)
+        return cls(
+            name, widget=Widget.switch(labels=options.pop("labels", None)), **options
+        )
 
     @classmethod
     def tags(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.tags(
-            choices=options.pop("choices", ()), create=options.pop("create", True)
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.tags(
+                choices=options.pop("choices", ()), create=options.pop("create", True)
+            ),
+            **options,
+        )
 
     @classmethod
     def date(cls, name: str, **options: typing.Any) -> Field:
@@ -194,40 +252,68 @@ class Field(Declaration):
 
     @classmethod
     def datetime(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.datetime(
-            seconds=options.pop("seconds", False), timezone=options.pop("timezone", None)
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.datetime(
+                seconds=options.pop("seconds", False),
+                timezone=options.pop("timezone", None),
+            ),
+            **options,
+        )
 
     @classmethod
     def file(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.file(
-            accept=options.pop("accept", ()), multiple=options.pop("multiple", False),
-            max_size=options.pop("max_size", None),
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.file(
+                accept=options.pop("accept", ()),
+                multiple=options.pop("multiple", False),
+                max_size=options.pop("max_size", None),
+            ),
+            **options,
+        )
 
     @classmethod
     def image(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.image(
-            aspect=options.pop("aspect", None), max_size=options.pop("max_size", None)
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.image(
+                aspect=options.pop("aspect", None),
+                max_size=options.pop("max_size", None),
+            ),
+            **options,
+        )
 
     @classmethod
     def json(cls, name: str, **options: typing.Any) -> Field:
-        return cls(name, widget=Widget.json(height=options.pop("height", 240)), **options)
+        return cls(
+            name, widget=Widget.json(height=options.pop("height", 240)), **options
+        )
 
     @classmethod
     def keyvalue(cls, name: str, **options: typing.Any) -> Field:
         return cls(name, widget=Widget.keyvalue(), **options)
 
     @classmethod
-    def relation(cls, name: str, *, display: str | None = None,
-                 search: typing.Sequence[str] = (), **options: typing.Any) -> Field:
+    def relation(
+        cls,
+        name: str,
+        *,
+        display: str | None = None,
+        search: typing.Sequence[str] = (),
+        **options: typing.Any,
+    ) -> Field:
         """A picker over the related table, searching rather than preloading."""
-        return cls(name, widget=Widget.relation(
-            display=display, search=search,
-            multiple=options.pop("multiple", False),
-            create=options.pop("create", False),
-        ), **options)
+        return cls(
+            name,
+            widget=Widget.relation(
+                display=display,
+                search=search,
+                multiple=options.pop("multiple", False),
+                create=options.pop("create", False),
+            ),
+            **options,
+        )
 
     # ------------------------------------------------------------- questions
 

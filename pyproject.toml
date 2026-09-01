@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "warder"
+version = "0.1.0"
+description = "A declarative admin for Sillo. Declarations are values, not class attributes, and a type annotation never selects behaviour."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause"
+authors = [
+    {name = "Chidebele Dunamis", email = "techwithdunamix@gmail.com"}
+]
+keywords = ["sillo", "admin", "crud", "declarative", "orm", "asgi", "inertia"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Database :: Front-Ends",
+    "Topic :: Internet :: WWW/HTTP",
+    "Typing :: Typed",
+]
+# The declaration layer needs nothing. Resolving one against a model needs the
+# ORM, and serving it needs the router — both of which are the framework.
+dependencies = ["sillo-framework>=0.3"]
+
+[project.urls]
+Homepage = "https://sillo.build"
+Documentation = "https://docs.sillo.build/packages/warder/"
+Source = "https://github.com/sillohq/warder"
+Changelog = "https://github.com/sillohq/warder/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+# The Inertia transport for the React interface. Optional because the
+# declarations, the resolver and `admin.render` are useful without it.
+ui = ["sillo-inertia>=0.0.1a4"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.scripts]
+warder = "warder.console:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["warder"]
+# The React sources are in the repository and never in the wheel; the built
+# assets they produce are, under warder/static/. Someone installing an admin
+# panel is not signing up to run Vite.
+exclude = ["ui", "ui/**"]
+
+[tool.hatch.build.targets.sdist]
+# The sdist carries ui/ so the wheel is reproducible from source.
+include = ["warder", "ui", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["warder"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if typing.TYPE_CHECKING:",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# `format`, `list`, `bytes`, `bool`, `id`, `max`, `min` are the words for what
+# these arguments are. A2/A3 would rename them into worse names.
+ignore = [
+    # `format`, `list`, `bytes`, `bool`, `id`, `max`, `min` are the words for
+    # what these arguments are. Renaming them gives worse names.
+    "A002",
+    "A003",
+    # __slots__ is in declaration order because it *is* the field order: it
+    # drives `_fields`, `with_` and every repr. Sorting it would reorder the
+    # public surface of every declaration.
+    "RUF023",
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
