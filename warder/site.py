@@ -37,6 +37,7 @@ from warder.resource import Resource
 from warder.theme import Theme
 
 if typing.TYPE_CHECKING:
+    from warder.resolve import Bound
     from warder.screens import List
 
 __all__ = ["Admin"]
@@ -84,6 +85,7 @@ class Admin:
         self.dashboard: Dashboard | None = None
         self.slots: dict[str, str] = {}
         self.mounted: typing.Any = None
+        self.bound: dict[str, Bound] = {}
         self._by_slug: dict[str, Resource] = {}
         self._by_model: dict[type, Resource] = {}
 
@@ -226,11 +228,11 @@ class Admin:
     # ------------------------------------------------------------ validation
 
     def check(self) -> list[DeclarationError]:
-        """Everything wrong that can be found without touching the database.
+        """Everything wrong that can be found without touching the ORM.
 
-        Model references need the ORM and are checked at :meth:`mount`. These
-        do not, so they are available to a test that never opens a connection —
-        which is most of them.
+        Model references are :meth:`bind`'s job. These are not, so they are
+        available to a test that never defines a model — which is most of
+        them.
         """
         problems: list[DeclarationError] = []
         declared = set(self.permissions)
@@ -266,15 +268,52 @@ class Admin:
             problems.extend(_check_resource(resource))
         return problems
 
+    def bind(self) -> dict[str, Bound]:
+        """Resolve every resource against its model, deriving what was left out.
+
+        This is where ``Resource(Post)`` with no screens becomes a list, a form
+        and a detail page, and where every field reference is checked against
+        the model. Raises on the first problem, with the line the declaration
+        was written on.
+
+        Separate from :meth:`check` because the two need different things: this
+        one needs models, that one needs nothing.
+        """
+        from warder.resolve import bind as bind_resource
+        from warder.resolve import check as check_resource
+
+        problems: list[DeclarationError] = []
+        for resource in self.resources:
+            if getattr(resource.model, "_meta", None) is None:
+                problems.append(
+                    DeclarationError(
+                        f"Resource({resource.model.__name__}) is not a "
+                        "sillo.record model — it has no _meta.",
+                        hint="Warder resolves declarations against the ORM's "
+                        "own metadata.",
+                        where=resource.where,
+                    )
+                )
+                continue
+            problems.extend(check_resource(resource))
+        if problems:
+            raise problems[0]
+        self.bound = {
+            resource.slug: bind_resource(resource) for resource in self.resources
+        }
+        return self.bound
+
     def mount(self, app: typing.Any) -> Admin:
         """Register the admin's routes on *app*, after checking every declaration.
 
-        The check runs first and raises on the first problem, so a start-up
-        that gets past this line has an admin whose every reference resolves.
+        The checks run first and raise on the first problem, so a start-up that
+        gets past this line has an admin whose every reference resolves. A
+        misspelled column should never become an empty cell in production.
         """
         problems = self.check()
         if problems:
             raise problems[0]
+        self.bind()
         try:
             from warder.routes import build
         except ImportError as exc:  # pragma: no cover - until routes ships
