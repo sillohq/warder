@@ -272,20 +272,39 @@ class Theme(Declaration):
         }
 
     def stylesheet(self) -> str:
-        """``:root`` and its dark counterpart, as one small block of CSS.
+        """The palette as CSS, in whichever of the three arrangements you asked for.
 
-        Light on bare ``:root`` so a viewer with no preference gets a complete
-        palette; dark redefined under both the media query and an explicit
-        attribute, so the toggle wins in either direction.
+        ``dark=True`` (the default) and ``dark="system"`` follow the viewer:
+        light on bare ``:root`` so somebody with no preference gets a complete
+        palette, dark under both the media query and ``[data-theme="dark"]`` so
+        an explicit choice wins in either direction.
+
+        ``dark="dark"`` inverts that — the admin is dark for everybody, and
+        ``[data-theme="light"]`` is the way back. Right for a tool that sits
+        beside a dark product, and the reason this is a setting rather than a
+        preference: the answer is sometimes the organisation's, not the
+        viewer's.
+
+        ``dark=False`` or ``dark="light"`` emits one palette and no toggle.
         """
-        light = _block(":root", self.css_variables("light"))
-        if self.dark is False:
-            return light
+        light = self.css_variables("light")
         dark = self.css_variables("dark")
-        chosen = _block('[data-theme="dark"]', dark)
-        preferred = _block(':root:not([data-theme="light"])', dark)
+
+        if self.dark is False or self.dark == "light":
+            return _block(":root", light, scheme="light")
+
+        if self.dark == "dark":
+            return "\n".join(
+                [
+                    _block(":root", dark, scheme="dark"),
+                    _block('[data-theme="light"]', light, scheme="light"),
+                ]
+            )
+
+        chosen = _block('[data-theme="dark"]', dark, scheme="dark")
+        preferred = _block(':root:not([data-theme="light"])', dark, scheme="dark")
         media = "@media (prefers-color-scheme: dark) {\n" + preferred + "\n}"
-        return "\n".join([light, chosen, media])
+        return "\n".join([_block(":root", light, scheme="light"), chosen, media])
 
     def __repr__(self) -> str:
         extras = [f"density={self.density!r}"] if self.density != "normal" else []
@@ -311,6 +330,17 @@ def _scale(length: str, factor: float) -> str:
         return length
 
 
-def _block(selector: str, variables: typing.Mapping[str, str]) -> str:
-    body = "\n".join(f"  {name}: {value};" for name, value in variables.items())
+def _block(
+    selector: str, variables: typing.Mapping[str, str], *, scheme: str | None = None
+) -> str:
+    """One rule. *scheme* sets ``color-scheme``, which is not decoration.
+
+    It is what makes a native ``<select>``, a date picker, a scrollbar and the
+    canvas behind the page match the palette. Without it a dark admin has white
+    dropdowns and a white flash on every load.
+    """
+    lines = [f"  {name}: {value};" for name, value in variables.items()]
+    if scheme:
+        lines.insert(0, f"  color-scheme: {scheme};")
+    body = "\n".join(lines)
     return f"{selector} {{\n{body}\n}}"

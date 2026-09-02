@@ -66,35 +66,41 @@ function short(value: number, currency?: string): string {
   }).format(value)
 }
 
-/** A round number at or above the tallest point, so the axis reads cleanly. */
-function ceiling(peak: number): number {
-  if (peak <= 0) return 1
+/**
+ * An axis whose labels are round numbers.
+ *
+ * The step is chosen first, from 1 / 2 / 5 / 10 × 10ⁿ, so that four of them
+ * cover the data. Choosing the *top* first and dividing it into four gives
+ * "3.8, 2.5, 1.3" above a column of whole students, which reads as noise
+ * rather than as a scale.
+ */
+function axis(peak: number): { top: number; ticks: number[] } {
+  if (peak <= 0) return { top: 1, ticks: [0, 1] }
   const magnitude = 10 ** Math.floor(Math.log10(peak))
-  for (const step of [1, 2, 2.5, 5, 10]) {
-    const candidate = step * magnitude
-    if (candidate >= peak) return candidate
+  for (const size of [1, 2, 5, 10, 20, 50]) {
+    const step = size * magnitude
+    const count = Math.ceil(peak / step)
+    if (count <= 4) {
+      const top = step * count
+      return { top, ticks: Array.from({ length: count + 1 }, (_, i) => i * step) }
+    }
   }
-  return 10 * magnitude
+  return { top: peak, ticks: [0, peak] }
 }
 
-function Grid({ top, currency }: { top: number; currency?: string }) {
+function Grid({ top, ticks, currency }: { top: number; ticks: number[]; currency?: string }) {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-      {[1, 0.75, 0.5, 0.25, 0].map((fraction) => (
+      {ticks.map((value) => (
         <div
-          key={fraction}
+          key={value}
           className="absolute inset-x-0 flex items-center gap-2"
-          style={{ bottom: `${fraction * 100}%` }}
+          style={{ bottom: `${(value / top) * 100}%` }}
         >
           <span className="wd-num w-10 shrink-0 text-right text-[10px] text-faint">
-            {fraction === 0 ? '0' : short(top * fraction, currency)}
+            {short(value, currency)}
           </span>
-          <span
-            className={cn(
-              'h-px flex-1',
-              fraction === 0 ? 'bg-edge' : 'bg-line',
-            )}
-          />
+          <span className={cn('h-px flex-1', value === 0 ? 'bg-edge' : 'bg-line')} />
         </div>
       ))}
     </div>
@@ -104,11 +110,11 @@ function Grid({ top, currency }: { top: number; currency?: string }) {
 // --------------------------------------------------------------------- bars
 
 function Bars({ points, height, currency }: { points: Point[]; height: number; currency?: string }) {
-  const top = ceiling(Math.max(...points.map((p) => Number(p.value) || 0)))
+  const { top, ticks } = axis(Math.max(...points.map((p) => Number(p.value) || 0)))
   return (
     <div>
       <div className="relative" style={{ height }}>
-        <Grid top={top} currency={currency} />
+        <Grid top={top} ticks={ticks} currency={currency} />
         {/* pl-12 clears the axis labels the grid draws. */}
         <div className="absolute inset-0 flex items-stretch gap-2 pl-12">
           {points.map((point, i) => {
@@ -161,7 +167,7 @@ function Line({
   currency?: string
 }) {
   const id = useId()
-  const top = ceiling(Math.max(...points.map((p) => Number(p.value) || 0)))
+  const { top, ticks } = axis(Math.max(...points.map((p) => Number(p.value) || 0)))
   const width = 100
   const step = points.length > 1 ? width / (points.length - 1) : 0
   const at = (point: Point, i: number) => ({
@@ -173,8 +179,12 @@ function Line({
   return (
     <div>
       <div className="relative" style={{ height }}>
-        <Grid top={top} currency={currency} />
+        <Grid top={top} ticks={ticks} currency={currency} />
+        {/* The inner box is `relative` so the markers' percentages resolve
+            against the plot area rather than against the whole card, which
+            includes the axis gutter and shifts every point left. */}
         <div className="absolute inset-0 pl-12">
+          <div className="relative h-full w-full">
           <svg
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
@@ -202,22 +212,22 @@ function Line({
               strokeLinejoin="round"
               strokeLinecap="round"
             />
-            {points.map((point, i) => {
-              const { x, y } = at(point, i)
-              return (
-                <circle
-                  key={i}
-                  cx={x}
-                  cy={y}
-                  r="3"
-                  fill="var(--wd-surface)"
-                  stroke="var(--wd-accent)"
-                  strokeWidth="2"
-                  vectorEffect="non-scaling-stroke"
-                />
-              )
-            })}
           </svg>
+
+          {/* Markers as HTML rather than SVG: the viewBox is stretched to fill
+              the card, and a circle drawn inside it comes out an ellipse. */}
+          {points.map((point, i) => {
+            const { x, y } = at(point, i)
+            return (
+              <span
+                key={i}
+                title={`${point.label}: ${point.value}`}
+                className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent bg-surface"
+                style={{ left: `${x}%`, top: `${y}%` }}
+              />
+            )
+          })}
+          </div>
         </div>
       </div>
       <div className="mt-2 flex gap-2 pl-12">

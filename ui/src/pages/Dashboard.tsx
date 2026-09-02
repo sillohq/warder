@@ -52,6 +52,8 @@ function Card({ card }: { card: CardSpec }) {
       const value = raw ? raw.value : card.data
       const delta = raw ? raw.delta : null
       const currency = card.options.currency as string | undefined
+      const suffix = (card.options.suffix as string | undefined) ?? ''
+      const prefix = (card.options.prefix as string | undefined) ?? ''
       const up = Number(delta) >= 0
       return (
         <Stat
@@ -60,7 +62,7 @@ function Card({ card }: { card: CardSpec }) {
           value={
             currency
               ? money(Number(value ?? 0), currency, 2)
-              : Number(value ?? 0).toLocaleString()
+              : `${prefix}${Number(value ?? 0).toLocaleString()}${suffix}`
           }
           sub={
             delta !== null && delta !== undefined ? (

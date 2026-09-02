@@ -970,3 +970,41 @@ async def test_a_chart_card_defaults_to_a_line(posts):
     admin.add(Dashboard(Card.chart("Trend", lambda ctx: [])))
     props = page_of(await _get(client(admin), "/admin", headers=INERTIA))["props"]
     assert props["cards"][0]["options"]["chart"] == "line"
+
+
+async def test_a_detail_page_formats_like_the_list(posts):
+    # A status drawn as a badge on the list and as raw text one click away is
+    # two answers to the same question.
+    from warder import Detail, Panel
+
+    first = await Post.first()
+    admin = site(
+        Resource(
+            Post,
+            detail=Detail(Panel.fields("Overview", "title", "status", "published_at")),
+        )
+    )
+    props = page_of(
+        await _get(client(admin), f"/admin/post/{first.pk}", headers=INERTIA)
+    )["props"]
+    formats = props["panels"][0]["options"]["formats"]
+    assert formats["published_at"]["kind"] == "date"
+    assert formats["title"]["kind"] == "text"
+
+
+async def test_a_declared_format_on_a_panel_column_wins(posts):
+    from warder import Detail, Format, Panel
+
+    first = await Post.first()
+    admin = site(
+        Resource(
+            Post,
+            detail=Detail(
+                Panel.fields("Overview", Column("words", format=Format.bytes()))
+            ),
+        )
+    )
+    props = page_of(
+        await _get(client(admin), f"/admin/post/{first.pk}", headers=INERTIA)
+    )["props"]
+    assert props["panels"][0]["options"]["formats"]["words"]["kind"] == "bytes"

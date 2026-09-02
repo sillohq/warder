@@ -594,14 +594,21 @@ async def _field_panel(
         ):
             continue
         described = bound.schema.get(column.name) if column.name else None
-        if (
-            described is not None
-            and described.kind == "relation"
-            and not column.display
-        ):
-            from warder.resolve import display_for
+        if described is not None:
+            # A detail page formats a value the way the list does. Without
+            # this, a status is raw text beside the same status drawn as a
+            # badge one click away, and a date reads "2010-01-01".
+            from warder.resolve import display_for, format_for
 
-            column = column.with_(display=display_for(described.related), related=True)
+            changes: dict[str, typing.Any] = {}
+            if described.relational and not column.display:
+                changes["display"] = display_for(described.related)
+                changes["related"] = True
+                changes["multiple"] = described.kind == "m2m"
+            if column.format is None and not described.relational:
+                changes["format"] = format_for(described)
+            if changes:
+                column = column.with_(**changes)
         names.append(column.key)
         values[column.key] = cell(row, column, schema=bound.schema, links=links)
         formats[column.key] = format_props(column)

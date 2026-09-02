@@ -43,9 +43,17 @@ export function DataTable({
   }
 
   return (
-    <div className="wd-scroll-x overflow-hidden rounded-[var(--radius-wd)] bg-surface ring-1 ring-line shadow-[var(--wd-shadow)]">
+    <div
+      className={cn(
+        'wd-scroll-x wd-scroll-y rounded-[var(--radius-wd)] bg-surface ring-1 ring-line shadow-[var(--wd-shadow)]',
+        // A sticky header sticks to its nearest scrolling ancestor, and
+        // `overflow-x: auto` makes this box one. Giving it a height is what
+        // turns "sticky" from a gap above the header into a header that stays.
+        page.stickyHeader && 'max-h-[calc(100vh-17rem)] overflow-y-auto',
+      )}
+    >
       <table className="w-full border-collapse text-[var(--text-wd)]">
-        <thead className={cn('bg-surface', page.stickyHeader && 'sticky top-[var(--spacing-header)] z-10')}>
+        <thead className={cn('bg-surface', page.stickyHeader && 'sticky top-0 z-10')}>
           <tr className="border-b border-line">
             {page.selectable && (
               <th scope="col" className="w-12 pl-cell">
@@ -147,7 +155,8 @@ export function DataTable({
 
 function Header({ column, sort }: { column: ColumnSpec; sort: string[] }) {
   const direction = sortDirection(sort, column.sort)
-  const base = 'wd-cell py-3.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-faint'
+  const base =
+    'wd-cell whitespace-nowrap py-3.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-faint'
 
   if (!column.sortable || !column.sort) {
     return (
@@ -171,7 +180,7 @@ function Header({ column, sort }: { column: ColumnSpec; sort: string[] }) {
         type="button"
         onClick={() => go({ sort: nextSort(sort, column.sort!) })}
         className={cn(
-          'wd-cell flex w-full items-center gap-1.5 py-3.5 text-[11px] font-bold uppercase tracking-[0.07em] transition-colors hover:text-ink',
+          'wd-cell flex w-full items-center gap-1.5 whitespace-nowrap py-3.5 text-[11px] font-bold uppercase tracking-[0.07em] transition-colors hover:text-ink',
           direction ? 'text-ink' : 'text-faint',
           column.align === 'right' && 'flex-row-reverse',
         )}

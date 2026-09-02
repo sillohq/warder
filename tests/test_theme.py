@@ -109,6 +109,35 @@ def test_dark_wins_in_both_directions():
 def test_a_light_only_theme_emits_one_block():
     sheet = Theme(dark=False).stylesheet()
     assert "prefers-color-scheme" not in sheet
+    assert sheet.count("{") == 1
+
+
+def test_dark_can_be_the_answer_for_everybody():
+    # An admin beside a dark product is dark for everybody, and that is the
+    # organisation's answer rather than the viewer's.
+    sheet = Theme(dark="dark").stylesheet()
+    assert sheet.startswith(":root {")
+    assert "--wd-bg: #050505" in sheet.split("[data-theme")[0]
+    assert '[data-theme="light"]' in sheet
+    assert "prefers-color-scheme" not in sheet
+
+
+def test_light_as_a_string_is_the_same_as_false():
+    assert Theme(dark="light").stylesheet() == Theme(dark=False).stylesheet()
+
+
+def test_system_is_the_default_arrangement():
+    assert Theme(dark="system").stylesheet() == Theme(dark=True).stylesheet()
+
+
+def test_every_block_sets_a_colour_scheme():
+    # Without it a dark admin has white dropdowns, a white scrollbar and a
+    # white flash on every load.
+    for setting in (True, "dark", "light"):
+        sheet = Theme(dark=setting).stylesheet()
+        # The declaration, not the media query's own `prefers-color-scheme`.
+        declared = sheet.count("\n  color-scheme:")
+        assert declared == sheet.count("--wd-bg:"), setting
 
 
 def test_the_dark_setting_is_checked():
