@@ -271,6 +271,28 @@ Customising has three rungs, in increasing order of commitment: **theme tokens**
 mounted from your own build — and **`warder eject`**, which copies `ui/` into your
 project and hands you the upgrades.
 
+## `Resource(Post)` is already a screen
+
+Everything is optional but the model. With no `list=`, `form=` or `detail=`, all
+three are built at mount from the model's own columns — identity first, then
+state, then time; a search box over the text columns, a chip per state, a date
+range; every writable column on the form with the timestamps collapsed into an
+Audit group; and a window onto each child table.
+
+```python
+admin.add(Resource(Post))          # a working list, form and detail page
+admin.add(Resource(Post, sort="-published_at", search=["title", "body"]))
+```
+
+The inference reads the **schema** — what the database says a column is — and
+never an annotation. A `TextField` gets a textarea because the column is long
+text. Naming a widget is for when the default is wrong about the *meaning*
+rather than the type: `body` and `internal_note` are both long text and only one
+of them wants Markdown.
+
+Every derived part is replaced by naming it, and nothing fights a declaration
+that exists.
+
 ## Status
 
 Alpha, and honest about which parts exist.
@@ -278,13 +300,13 @@ Alpha, and honest about which parts exist.
 | | |
 | --- | --- |
 | ✅ | The declaration layer — every value in the table below, frozen, comparable, extendable |
-| ✅ | The site registry, navigation, declared permissions, and the checks that need no database |
-| 🚧 | The resolver: binding declarations to models, deriving screens, validating references |
+| ✅ | The site registry, navigation, declared permissions, and the checks that need no ORM |
+| ✅ | The resolver: binding to models, deriving screens, checking every reference |
 | 🚧 | The routes, the Inertia interface, and the bundled assets |
 | 🚧 | `warder permissions sync`, `warder eject` |
 
-`Admin.mount()` runs every check it can today and raises `NotConfigured` at the
-route-building step until the routes land.
+`Admin.check()` and `Admin.bind()` both work today. `Admin.mount()` runs both and
+then raises `NotConfigured` at the route-building step until the routes land.
 
 ## The vocabulary
 

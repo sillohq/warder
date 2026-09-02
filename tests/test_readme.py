@@ -181,3 +181,24 @@ def test_mount_is_honest_about_not_being_finished():
 
     with pytest.raises(NotConfigured, match=r"warder\.routes"):
         Admin().mount(object())
+
+
+def test_a_bare_resource_derives_all_three_screens():
+    from orm import Post as RealPost
+
+    admin = Admin().add(Resource(RealPost))
+    bound = admin.bind()["post"]
+    assert bound.list.columns
+    assert bound.form.fields
+    assert bound.detail.panels
+
+
+def test_a_bare_resource_takes_a_sort_and_a_search():
+    from orm import Post as RealPost
+
+    admin = Admin().add(
+        Resource(RealPost, sort="-published_at", search=["title", "body"])
+    )
+    bound = admin.bind()["post"]
+    assert bound.list.sort.as_terms() == ("-published_at",)
+    assert bound.list.search.fields == ("title", "body")

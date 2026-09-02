@@ -33,7 +33,23 @@ All notable changes to Warder are recorded here. The format follows
 - **`When`**, a form condition serialised into props so a conditional field
   appears the instant another field changes, and re-checked on the server before
   a write.
-- 641 tests, no database required.
+- 803 tests, and no database connection in any of them.
+
+- **The resolver.** `Resource(Post)` with no screens becomes a working list,
+  form and detail page, derived from the model's own columns at mount. Widgets
+  and formats are read off the schema — what the database says a column is — and
+  never off an annotation.
+- **Model checks**, raised at `Admin.bind()` with the line the declaration was
+  written on: misspelled columns with a did-you-mean, a `Column.relation` over a
+  plain column, a display that is not on the far side, `select_related` over
+  something that is not a relation, a sum over a text column, a reverse relation
+  on a form, and a readonly required column with no default — which renders,
+  submits, and fails at the database naming a column the user was never shown.
+  An inline panel over a child with two foreign keys back asks for `via=` rather
+  than picking one.
+- **`Schema`**, which reads a model in the admin's own terms and works before
+  `Tortoise.init`: a relation still held as a string is reported as *unresolved*
+  rather than missing, because "cannot check" is not "wrong".
 
 ### Notes
 
@@ -47,8 +63,6 @@ All notable changes to Warder are recorded here. The format follows
 
 ### Not yet built
 
-- The resolver that binds declarations to models and derives the screens a bare
-  `Resource(Post)` implies.
 - The routes, the Inertia interface and the bundled assets. `Admin.mount()`
-  runs every check it can and raises `NotConfigured` at the route-building step.
+  checks and binds, then raises `NotConfigured` at the route-building step.
 - `warder permissions sync` and `warder eject`.
