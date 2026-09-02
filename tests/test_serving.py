@@ -779,3 +779,164 @@ async def test_a_related_panel_does_not_pretend_to_filter(posts):
     )["props"]
     panel = next(p for p in props["panels"] if p["kind"] == "related")
     assert panel["options"]["href"] == "/admin/post"
+
+
+# ------------------------------------------------------- references you click
+
+
+async def test_a_relation_cell_is_a_link_to_that_row(posts):
+    # The author on a post goes to that author. It is the reason both screens
+    # exist, and a name you cannot click is a dead end.
+    admin = site(
+        Resource(Post, list=List(Column("title"), Column.relation("author"))),
+        Resource(Author),
+    )
+    props = page_of(await _get(client(admin), "/admin/post", headers=INERTIA))["props"]
+    author = props["rows"][0]["cells"]["author"]
+    assert author["label"] == "Ada"
+    assert author["href"] == "/admin/author/1"
+
+
+async def test_a_relation_to_an_unregistered_model_has_no_link(posts):
+    # Nowhere to go, so nothing to click — rather than a link to a 404.
+    admin = site(Resource(Post, list=List(Column("title"), Column.relation("author"))))
+    props = page_of(await _get(client(admin), "/admin/post", headers=INERTIA))["props"]
+    assert props["rows"][0]["cells"]["author"]["href"] is None
+    assert props["rows"][0]["cells"]["author"]["label"] == "Ada"
+
+
+async def test_a_plain_column_naming_a_relation_still_links(posts):
+    # Column("author") and Column.relation("author") must not differ when the
+    # model says the same thing about both.
+    admin = site(
+        Resource(Post, list=List(Column("title"), Column("author"))), Resource(Author)
+    )
+    props = page_of(await _get(client(admin), "/admin/post", headers=INERTIA))["props"]
+    assert props["rows"][0]["cells"]["author"]["href"] == "/admin/author/1"
+
+
+async def test_a_many_to_many_cell_is_a_list_of_links(posts):
+    first = await Post.first()
+    tag = await Tag.create(label="engineering")
+    other = await Tag.create(label="design")
+    await first.tags.add(tag, other)
+
+    admin = site(
+        Resource(Post, list=List(Column("title"), Column.many("tags"))), Resource(Tag)
+    )
+    props = page_of(await _get(client(admin), "/admin/post", headers=INERTIA))["props"]
+    row = next(r for r in props["rows"] if r["id"] == first.pk)
+    assert sorted(item["label"] for item in row["cells"]["tags"]) == [
+        "design",
+        "engineering",
+    ]
+    assert all(item["href"].startswith("/admin/tag/") for item in row["cells"]["tags"])
+
+
+async def test_a_many_to_many_is_prefetched_not_joined(posts):
+    # One post with four tags is four rows if you join it. The page count has
+    # to stay right, which is what proves it was prefetched.
+    first = await Post.first()
+    await first.tags.add(await Tag.create(label="a"), await Tag.create(label="b"))
+    admin = site(Resource(Post, list=List(Column("title"), Column.many("tags"))))
+    props = page_of(await _get(client(admin), "/admin/post", headers=INERTIA))["props"]
+    assert props["total"] == 4
+    assert len(props["rows"]) == 4
+
+
+async def test_an_empty_many_to_many_is_an_empty_list(posts):
+    admin = site(Resource(Post, list=List(Column("title"), Column.many("tags"))))
+    props = page_of(await _get(client(admin), "/admin/post", headers=INERTIA))["props"]
+    assert props["rows"][0]["cells"]["tags"] == []
+
+
+async def test_the_detail_page_links_its_relations(posts):
+    from warder import Detail, Panel
+
+    first = await Post.first()
+    admin = site(
+        Resource(Post, detail=Detail(Panel.fields("Overview", "title", "author"))),
+        Resource(Author),
+    )
+    props = page_of(
+        await _get(client(admin), f"/admin/post/{first.pk}", headers=INERTIA)
+    )["props"]
+    value = props["panels"][0]["options"]["values"]["author"]
+    assert value["label"] == "Ada"
+    assert value["href"] == "/admin/author/1"
+
+
+async def test_a_child_panel_drops_the_column_pointing_back(posts):
+    # Every comment on a post's panel has the same post, and a column of one
+    # repeated value only takes up room.
+    from warder import Detail, Panel
+
+    admin = site(
+        Resource(Author, detail=Detail(Panel.related("Posts", Post))),
+        Resource(
+            Post,
+            list=List(Column("title"), Column.relation("author"), Column("status")),
+        ),
+    )
+    author = await Author.first()
+    props = page_of(
+        await _get(client(admin), f"/admin/author/{author.pk}", headers=INERTIA)
+    )["props"]
+    panel = next(p for p in props["panels"] if p["kind"] == "related")
+    assert [c["key"] for c in panel["options"]["columns"]] == ["title", "status"]
+
+
+# ------------------------------------------------------- editing a set of them
+
+
+async def test_a_picker_resolves_labels_for_what_is_already_chosen(posts):
+    # Without this an edit form opens showing raw numbers for everything
+    # already selected, because the search has not returned those rows yet.
+    tag = await Tag.create(label="engineering")
+    admin = site(Resource(Post))
+    response = await _get(client(admin), f"/admin/post/options/tags?ids={tag.pk}")
+    assert response.json()["options"] == [{"id": tag.pk, "label": "engineering"}]
+
+
+async def test_the_form_carries_the_current_set(posts):
+    first = await Post.first()
+    tag = await Tag.create(label="engineering")
+    await first.tags.add(tag)
+
+    admin = site(
+        Resource(
+            Post,
+            form=Form(Section("", Field("title"), Field("tags"))),
+        )
+    )
+    props = page_of(
+        await _get(client(admin), f"/admin/post/{first.pk}/edit", headers=INERTIA)
+    )["props"]
+    assert props["values"]["tags"] == [tag.pk]
+
+
+async def test_saving_replaces_the_whole_set(posts):
+    first = await Post.first()
+    one = await Tag.create(label="one")
+    two = await Tag.create(label="two")
+    await first.tags.add(one)
+
+    admin = site(Resource(Post, form=Form(Section("", Field("title"), Field("tags")))))
+    await _post(
+        client(admin),
+        f"/admin/post/{first.pk}",
+        json={"title": first.title, "tags": [two.pk]},
+    )
+    assert [tag.label for tag in await first.tags.all()] == ["two"]
+
+
+async def test_an_empty_set_clears_it(posts):
+    first = await Post.first()
+    await first.tags.add(await Tag.create(label="one"))
+    admin = site(Resource(Post, form=Form(Section("", Field("title"), Field("tags")))))
+    await _post(
+        client(admin),
+        f"/admin/post/{first.pk}",
+        json={"title": first.title, "tags": []},
+    )
+    assert await first.tags.all() == []

@@ -146,8 +146,10 @@ async def apply(
             rows = filter_.apply(rows, raw)
     if screen.joins:
         rows = rows.select_related(*screen.joins)
-    if screen.prefetch_related:
-        rows = rows.prefetch_related(*screen.prefetch_related)
+    if screen.prefetches:
+        # Many-to-many cannot be joined into one row, so it is prefetched --
+        # one extra query for the page rather than one per row.
+        rows = rows.prefetch_related(*screen.prefetches)
     order = query.sort or screen.sort
     if order:
         rows = rows.order_by(*order.as_terms())
@@ -241,6 +243,7 @@ async def list_page(
     screen = bound.list
     resource = bound.resource
     columns = await visible(ctx, screen.columns)
+    links = links_for(admin)
     may = {
         action: await resource.allows(ctx, action)
         for action in ("add", "change", "delete")
@@ -248,7 +251,7 @@ async def list_page(
     return {
         "resource": _resource_props(admin, bound),
         "columns": [column_props(column) for column in columns],
-        "rows": [_row_props(admin, bound, row, columns) for row in rows],
+        "rows": [_row_props(admin, bound, row, columns, links) for row in rows],
         "filters": [filter_props(filter_) for filter_ in screen.filters],
         "actions": [
             action_props(action)
@@ -290,10 +293,17 @@ def _resource_props(admin: Admin, bound: Bound) -> dict[str, typing.Any]:
 
 
 def _row_props(
-    admin: Admin, bound: Bound, row: typing.Any, columns: typing.Sequence[Column]
+    admin: Admin,
+    bound: Bound,
+    row: typing.Any,
+    columns: typing.Sequence[Column],
+    links: typing.Mapping[type, str],
 ) -> dict[str, typing.Any]:
     key = jsonable(getattr(row, bound.schema.pk, None))
-    cells = {column.key: cell(row, column) for column in columns}
+    cells = {
+        column.key: cell(row, column, schema=bound.schema, links=links)
+        for column in columns
+    }
     return {
         "id": key,
         "href": f"{bound.resource.route(admin.prefix)}/{key}",
@@ -302,25 +312,90 @@ def _row_props(
     }
 
 
-def cell(row: typing.Any, column: Column) -> typing.Any:
+def cell(
+    row: typing.Any,
+    column: Column,
+    *,
+    schema: Schema | None = None,
+    links: typing.Mapping[type, str] | None = None,
+) -> typing.Any:
     """The value of one cell, extracted but not formatted.
 
     Formatting is the renderer's job: it knows the viewer's locale and how wide
     the column is, and the server knows neither.
+
+    A relation carries an ``href`` when the far model is registered, so the
+    author on a post is a link to that author rather than a dead name. A
+    many-to-many carries a list of them. Both are computed here because only
+    the server knows what is registered and who may see it.
     """
     if column.derive is not None:
         return jsonable(column.derive(row))
+
+    described = schema.get(column.name) if schema and column.name else None
+    if described is not None and described.kind == "m2m":
+        return _many(row, column, described, links)
+
     value: typing.Any = row
     for part in column.traversal:
         if value is None:
             return None
         value = getattr(value, part, None)
-    if column.display is not None and value is not None:
-        return {
-            "id": jsonable(getattr(value, "pk", None)),
-            "label": jsonable(getattr(value, column.display, None)),
-        }
+
+    if value is None:
+        return None
+    if column.display is not None or _is_row(value):
+        return _reference(value, column.display, links)
     return jsonable(value)
+
+
+def _many(
+    row: typing.Any,
+    column: Column,
+    described: typing.Any,
+    links: typing.Mapping[type, str] | None,
+) -> list[dict[str, typing.Any]] | None:
+    """Every row on the far side of a many-to-many, as references.
+
+    ``None`` rather than an empty list when the relation was not prefetched:
+    "we did not load this" and "there are none" are different answers, and
+    showing the second for the first is how a column quietly lies.
+    """
+    manager = getattr(row, typing.cast(str, column.name), None)
+    if manager is None or not getattr(manager, "_fetched", False):
+        return None
+    return [_reference(item, column.display, links) for item in manager]
+
+
+def _reference(
+    value: typing.Any, display: str | None, links: typing.Mapping[type, str] | None
+) -> dict[str, typing.Any]:
+    """One related row: what to call it, and where to click through to."""
+    label = getattr(value, display, None) if display else None
+    key = jsonable(getattr(value, "pk", None))
+    base = (links or {}).get(type(value))
+    return {
+        "id": key,
+        "label": jsonable(label) if label is not None else str(value),
+        "href": f"{base}/{key}" if base and key is not None else None,
+    }
+
+
+def _is_row(value: typing.Any) -> bool:
+    """Whether *value* is a model instance rather than a plain column value."""
+    return hasattr(value, "_meta") and hasattr(value, "pk")
+
+
+def links_for(admin: Admin) -> dict[type, str]:
+    """Where each registered model's detail pages live.
+
+    Built once per page rather than per cell: a hundred rows with three
+    relation columns each would otherwise walk the registry three hundred
+    times to answer the same question.
+    """
+    return {
+        resource.model: resource.route(admin.prefix) for resource in admin.resources
+    }
 
 
 def _empty_props(screen: List) -> dict[str, typing.Any]:
@@ -396,8 +471,16 @@ def _values(bound: Bound, form: Form, row: typing.Any) -> dict[str, typing.Any]:
             default = described.default if described else None
             values[field.name] = default() if callable(default) else default
             continue
-        current = getattr(row, field.name, None)
         described = bound.schema.get(field.name)
+        if described is not None and described.kind == "m2m":
+            manager = getattr(row, field.name, None)
+            values[field.name] = (
+                [jsonable(getattr(item, "pk", None)) for item in manager]
+                if manager is not None and getattr(manager, "_fetched", False)
+                else []
+            )
+            continue
+        current = getattr(row, field.name, None)
         if described is not None and described.kind == "relation":
             current = getattr(row, f"{described.column}", None)
         values[field.name] = current
@@ -477,7 +560,7 @@ async def _panel_props(
     }
 
     if panel.kind == "fields":
-        props["options"].update(await _field_panel(ctx, bound, panel, row))
+        props["options"].update(await _field_panel(admin, ctx, bound, panel, row))
     elif panel.kind in ("inline", "related"):
         props["options"].update(await _rows_panel(admin, bound, panel, row))
     elif panel.kind == "text":
@@ -491,22 +574,38 @@ async def _panel_props(
 
 
 async def _field_panel(
-    ctx: typing.Any, bound: Bound, panel: Panel, row: typing.Any
+    admin: Admin, ctx: typing.Any, bound: Bound, panel: Panel, row: typing.Any
 ) -> dict[str, typing.Any]:
-    """The values a ``Panel.fields`` shows, after per-field access."""
+    """The values a ``Panel.fields`` shows, after per-field access.
+
+    Relations come through as references, so the author on a post's detail page
+    is a link to that author — which is the whole point of having both screens.
+    """
     from warder.columns import Column as ColumnValue
 
+    links = links_for(admin)
     names: list[str] = []
     values: dict[str, typing.Any] = {}
+    formats: dict[str, typing.Any] = {}
     for entry in panel.target:
         column = entry if isinstance(entry, ColumnValue) else ColumnValue(entry)
         if column.access is not None and not await column.access.allows(
             ctx, "view", row
         ):
             continue
+        described = bound.schema.get(column.name) if column.name else None
+        if (
+            described is not None
+            and described.kind == "relation"
+            and not column.display
+        ):
+            from warder.resolve import display_for
+
+            column = column.with_(display=display_for(described.related), related=True)
         names.append(column.key)
-        values[column.key] = cell(row, column)
-    return {"names": names, "values": values}
+        values[column.key] = cell(row, column, schema=bound.schema, links=links)
+        formats[column.key] = format_props(column)
+    return {"names": names, "values": values, "formats": formats}
 
 
 async def _rows_panel(
@@ -530,7 +629,7 @@ async def _rows_panel(
     key = getattr(row, bound.schema.pk, None)
     limit = int(panel.option("limit", 10) or 10)
     child = admin.resource_for(model)
-    columns = _panel_columns(panel, child, model)
+    columns = _panel_columns(panel, child, model, via)
 
     rows = typing.cast(typing.Any, model).filter(**{via: key})
     joins = tuple(path for path in (column.relation_path for column in columns) if path)
@@ -585,7 +684,10 @@ def _panel_link(
 
 
 def _panel_columns(
-    panel: Panel, child: typing.Any, model: typing.Any
+    panel: Panel,
+    child: typing.Any,
+    model: typing.Any,
+    via: str | None = None,
 ) -> tuple[Column, ...]:
     """What a child table shows: what the panel said, else the child's own list.
 
@@ -603,7 +705,16 @@ def _panel_columns(
         )
     if child is not None and child.list is not None:
         # Two or three columns; a panel is a window, not the screen itself.
-        return tuple(column for column in child.list.columns if not column.hidden)[:3]
+        #
+        # The column pointing back at the parent is dropped: every comment on
+        # a post's panel has the same post, and a column of one repeated value
+        # only takes up room.
+        back = {via, f"{via}_id"} if via else set()
+        return tuple(
+            column
+            for column in child.list.columns
+            if not column.hidden and column.name not in back
+        )[:3]
     schema = Schema.of(model)
     names = [
         field.name
@@ -649,6 +760,7 @@ def column_props(column: Column) -> dict[str, typing.Any]:
         "sticky": column.sticky,
         "toggle": column.toggle,
         "relation": column.related,
+        "multiple": column.multiple,
     }
 
 

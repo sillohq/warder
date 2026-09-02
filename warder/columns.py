@@ -56,6 +56,7 @@ class Column(Declaration):
         "derive",
         "display",
         "related",
+        "multiple",
         "hidden",
         "wrap",
         "empty",
@@ -76,6 +77,7 @@ class Column(Declaration):
     derive: typing.Callable[[typing.Any], typing.Any] | None
     display: str | None
     related: bool
+    multiple: bool
     hidden: bool
     wrap: bool
     empty: str
@@ -97,6 +99,7 @@ class Column(Declaration):
         derive: typing.Callable[[typing.Any], typing.Any] | None = None,
         display: str | None = None,
         related: bool = False,
+        multiple: bool = False,
         hidden: bool = False,
         wrap: bool = False,
         empty: str = "—",
@@ -127,6 +130,7 @@ class Column(Declaration):
             derive=derive,
             display=identifier("Column display", display) if display else None,
             related=related,
+            multiple=multiple,
             hidden=hidden,
             wrap=wrap,
             empty=empty,
@@ -295,6 +299,30 @@ class Column(Declaration):
         )
 
     @classmethod
+    def many(
+        cls,
+        name: str,
+        *,
+        display: str | None = None,
+        limit: int | None = 4,
+        **options: typing.Any,
+    ) -> Column:
+        """A many-to-many, drawn as a row of clickable chips.
+
+        Declaring it is what makes the list prefetch the relation — one extra
+        query for the page rather than one per row.
+        """
+        return cls(
+            name,
+            display=display,
+            related=True,
+            multiple=True,
+            sort=options.pop("sort", False),
+            format=Format.tags(limit=limit),
+            **options,
+        )
+
+    @classmethod
     def relation(
         cls,
         name: str,
@@ -396,7 +424,8 @@ class Column(Declaration):
         parts = self.traversal
         if len(parts) > 1:
             return "__".join(parts[:-1])
-        if self.related and self.name:
+        # A many-to-many is prefetched, never joined: see List.prefetches.
+        if self.related and not self.multiple and self.name:
             return self.name
         return None
 

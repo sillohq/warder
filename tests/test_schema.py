@@ -130,7 +130,14 @@ def test_editable_is_what_a_form_may_write():
         "secret",
         "published_at",
         "author",
+        "tags",
     ]
+
+
+def test_a_many_to_many_is_writable():
+    # It is set after the row exists, but it is still something a form offers.
+    assert Schema.of(Post).get("tags").editable
+    assert Schema.of(Post).get("tags").kind == "m2m"
 
 
 def test_relations_are_listed():

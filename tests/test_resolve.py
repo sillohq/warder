@@ -379,8 +379,52 @@ def test_binding_derives_what_was_left_out():
 
 
 def test_binding_keeps_what_was_declared():
-    declared = List(Column("title"))
-    assert bind(Resource(Post, list=declared)).list is declared
+    declared = List(Column("title"), per_page=7, sort=Sort.asc("title"))
+    bound = bind(Resource(Post, list=declared)).list
+    assert [c.key for c in bound.columns] == ["title"]
+    assert bound.per_page == 7
+    assert bound.sort == declared.sort
+
+
+def test_a_declared_relation_column_learns_that_it_is_one():
+    # Column("author") and Column.relation("author") must not behave
+    # differently when the model says the same thing about both: without the
+    # marker the list joins nothing and every row costs a query.
+    bound = bind(Resource(Post, list=List(Column("author")))).list
+    assert bound.columns[0].related
+    assert bound.columns[0].display == "name"
+    assert bound.joins == ("author",)
+
+
+def test_a_declared_many_to_many_column_is_prefetched():
+    from orm import Wide
+
+    bound = bind(Resource(Wide, list=List(Column("tags")))).list
+    assert bound.columns[0].multiple
+    assert bound.prefetches == ("tags",)
+    # Never joined: one row with four tags is four rows.
+    assert bound.joins == ()
+
+
+def test_a_many_to_many_column_is_not_sortable():
+    from orm import Wide
+
+    bound = bind(Resource(Wide, list=List(Column("tags")))).list
+    assert not bound.columns[0].sortable
+
+
+def test_a_derived_list_includes_a_many_to_many():
+    from orm import Wide
+
+    keys = {c.key for c in derive_list(Schema.of(Wide)).columns}
+    assert "tags" in keys
+
+
+def test_an_explicit_display_survives_dressing():
+    bound = bind(
+        Resource(Post, list=List(Column.relation("author", display="email")))
+    ).list
+    assert bound.columns[0].display == "email"
 
 
 def test_a_resource_sort_reaches_a_derived_list():

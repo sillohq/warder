@@ -69,6 +69,7 @@ class Post(Model):
     secret = PasswordField()
     published_at = fields.DatetimeField(null=True)
     author = fields.ForeignKeyField("models.Author", related_name="posts", null=True)
+    tags = fields.ManyToManyField("models.Tag", related_name="posts")
 
     def __str__(self) -> str:
         return self.title

@@ -53,6 +53,10 @@ FLASH = "_warder_flash"
 #: way for a signed-in user to take the process down by accident.
 EXPORT_LIMIT = 50_000
 
+#: How many rows a relation picker offers at once. It searches over the wire, so
+#: the answer to "there are more" is to type, not to scroll.
+OPTION_LIMIT = 25
+
 
 def build(admin: Admin, app: typing.Any) -> None:
     """Register the admin on *app*: sessions, then assets, then routes."""
@@ -664,10 +668,19 @@ class _Site:
 
             display = display_for(described.related)
             rows = typing.cast(typing.Any, described.related).all()
-            term = ctx.query_params.get("q")
-            if term and display:
-                rows = rows.filter(**{f"{display}__icontains": term})
-            found = await rows.limit(20)
+
+            # `?ids=` resolves labels for values that are already chosen. Without
+            # it an edit form opens showing raw numbers for everything already
+            # selected, because the search has not returned those rows yet.
+            wanted = ctx.query_params.get("ids")
+            if wanted:
+                keys = [one for one in str(wanted).split(",") if one]
+                found = await rows.filter(pk__in=keys).limit(OPTION_LIMIT)
+            else:
+                term = ctx.query_params.get("q")
+                if term and display:
+                    rows = rows.filter(**{f"{display}__icontains": term})
+                found = await rows.limit(OPTION_LIMIT)
             return responses.json(
                 {
                     "options": [
@@ -694,6 +707,24 @@ class _Site:
         someone a row exists that they may not see is itself a disclosure.
         """
         rows = await bound.resource.rows(ctx, _all(bound))
+
+        # One row, with its relations already on it. Without the join, reading
+        # `row.author` hands back a lazy queryset rather than the author, and
+        # the detail page shows "<RecordQuerySet object at 0x...>" where a name
+        # should be. Without the prefetch, reading a many-to-many raises.
+        forward = [
+            field.name
+            for field in bound.schema.fields.values()
+            if field.kind == "relation"
+        ]
+        many = [
+            field.name for field in bound.schema.fields.values() if field.kind == "m2m"
+        ]
+        if forward:
+            rows = rows.select_related(*forward)
+        if many:
+            rows = rows.prefetch_related(*many)
+
         key = ctx.path_params.get("id")
         return await rows.filter(**{bound.schema.pk: key}).first()
 
@@ -763,11 +794,17 @@ class _Site:
 
         created = row is None
         target = row if row is not None else bound.model()
+        # Many-to-many is set after the row exists, because a join table needs
+        # both sides. Collected here and written below the save.
+        deferred: list[tuple[str, typing.Any, typing.Any]] = []
         for field in writable:
             if field.name not in values:
                 continue
             described = bound.schema.get(field.name)
             value = values[field.name]
+            if described is not None and described.kind == "m2m":
+                deferred.append((field.name, described.related, value))
+                continue
             if described is not None and described.kind == "relation":
                 # Written through the raw column, so setting a foreign key is
                 # one statement and no extra query for the far row.
@@ -803,6 +840,9 @@ class _Site:
                     errors={"__all__": _readable(refused)},
                 ),
             )
+
+        for name, related, chosen in deferred:
+            await _set_many(target, name, related, chosen)
 
         _flash(ctx, f"{'Created' if created else 'Saved'} {target}.")
         base = bound.resource.route(self.admin.prefix)
@@ -870,6 +910,24 @@ def _option_label(row: typing.Any, display: str | None) -> str:
 def _all(bound: Bound) -> typing.Any:
     """Every row of a bound resource's model, before anything narrows it."""
     return typing.cast(typing.Any, bound.model).all()
+
+
+async def _set_many(
+    target: typing.Any, name: str, related: typing.Any, chosen: typing.Any
+) -> None:
+    """Replace a many-to-many with exactly what was submitted.
+
+    Cleared and re-added rather than diffed: the form sends the whole set, so a
+    diff would be guessing at an intent the browser already stated. Both calls
+    are one statement each, whatever the size of the set.
+    """
+    manager = getattr(target, name, None)
+    if manager is None or related is None:
+        return
+    ids = [value for value in (chosen or []) if value not in (None, "")]
+    await manager.clear()
+    if ids:
+        await manager.add(*await typing.cast(typing.Any, related).filter(pk__in=ids))
 
 
 def _csv(

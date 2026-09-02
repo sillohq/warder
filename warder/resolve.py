@@ -45,6 +45,7 @@ __all__ = [
     "derive_form",
     "derive_list",
     "dress",
+    "dress_list",
 ]
 
 #: Names a related row is usually known by, best first. Consulted before
@@ -68,7 +69,7 @@ DISPLAY_NAMES = (
 LIST_WIDTH = 7
 
 #: Kinds that are never worth a column of their own in a derived list.
-_NOT_LISTED = frozenset({"password", "binary", "backward", "m2m", "longtext"})
+_NOT_LISTED = frozenset({"password", "binary", "backward", "longtext"})
 
 #: Kinds a total can be taken over.
 _SUMMABLE = frozenset({"integer", "decimal", "float"})
@@ -110,7 +111,11 @@ def bind(resource: Resource) -> Bound:
     """Resolve *resource*: derive what is missing, keep what is not."""
     schema = Schema.of(resource.model)
     declared = resource.list is not None
-    screen = typing.cast(List, resource.list) if declared else derive_list(schema)
+    screen = (
+        dress_list(typing.cast(List, resource.list), schema)
+        if declared
+        else derive_list(schema)
+    )
 
     # A derived list carries a *default* ordering and a *default* search box,
     # and `Resource(sort=..., search=...)` is how you say what those should be
@@ -142,6 +147,7 @@ def derive_list(schema: Schema) -> List:
     identifying: list[ModelField] = []
     stateful: list[ModelField] = []
     relations: list[ModelField] = []
+    many: list[ModelField] = []
     timestamps: list[ModelField] = []
 
     for field in schema.fields.values():
@@ -151,6 +157,8 @@ def derive_list(schema: Schema) -> List:
             continue
         if field.kind == "relation":
             relations.append(field)
+        elif field.kind == "m2m":
+            many.append(field)
         elif field.choices or field.kind in ("boolean", "enum"):
             stateful.append(field)
         elif field.kind in ("datetime", "date"):
@@ -158,7 +166,13 @@ def derive_list(schema: Schema) -> List:
         elif field.kind in ("text", "slug", "integer", "decimal", "float", "uuid"):
             identifying.append(field)
 
-    chosen = [*identifying[:3], *stateful[:2], *relations[:1], *timestamps[:1]]
+    chosen = [
+        *identifying[:3],
+        *stateful[:2],
+        *relations[:1],
+        *many[:1],
+        *timestamps[:1],
+    ]
     for field in chosen[: LIST_WIDTH - 1]:
         columns.append(column_for(field))
 
@@ -200,6 +214,58 @@ def derive_filters(schema: Schema) -> tuple[Filter, ...]:
             filters.append(Filter.date_range(field.name))
             break
     return tuple(filters)
+
+
+def dress_list(screen: List, schema: Schema) -> List:
+    """Fill in what a declared list left unsaid.
+
+    The same rule as :func:`dress` for forms, and it matters more here: a
+    column naming a relation has to *know* it is one, or the list joins nothing
+    and every row costs a query. ``Column("author")`` and
+    ``Column.relation("author")`` should not behave differently when the model
+    says the same thing about both.
+    """
+    return List(
+        *(_dressed_column(column, schema) for column in screen.columns),
+        filters=screen.filters,
+        actions=screen.actions,
+        row_actions=screen.row_actions,
+        sort=screen.sort,
+        select_related=screen.select_related,
+        prefetch_related=screen.prefetch_related,
+        per_page=screen.per_page,
+        per_page_options=screen.per_page_options,
+        empty=screen.empty,
+        selectable=screen.selectable,
+        sticky_header=screen.sticky_header,
+        density=screen.density,
+        totals=screen.totals,
+        group_by=screen.group_by,
+        export=screen.export,
+        limit=screen.limit,
+        description=screen.description,
+    )
+
+
+def _dressed_column(column: Column, schema: Schema) -> Column:
+    """A column that knows what the model says its field is."""
+    if column.name is None:
+        return column
+    described = schema.resolve(column.name)
+    if described is None or not described.relational:
+        return column
+
+    changes: dict[str, typing.Any] = {}
+    if not column.related:
+        changes["related"] = True
+    if described.kind == "m2m" and not column.multiple:
+        changes["multiple"] = True
+        changes.setdefault("sort", False)
+        if column.format is None:
+            changes["format"] = Format.tags(limit=4)
+    if column.display is None:
+        changes["display"] = display_for(described.related)
+    return column.with_(**changes) if changes else column
 
 
 def dress(form: Form, schema: Schema) -> Form:

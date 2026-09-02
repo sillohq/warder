@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react'
 import type { ColumnSpec, DetailPage, Json, PanelSpec } from '../types'
 import { cn } from '../lib/cn'
-import { Cell, humanise, label } from '../lib/format'
+import { Cell, References, Reference, humanise, isReference, label, type Ref } from '../lib/format'
 import { Icon } from './Icon'
 import { Empty, Panel } from './ui'
 
@@ -49,26 +49,66 @@ function Body({ panel }: { panel: PanelSpec }) {
 
 function Fields({ panel }: { panel: PanelSpec }) {
   const values = (panel.options.values as Record<string, Json>) ?? {}
+  const formats = (panel.options.formats as unknown as Record<string, ColumnSpec['format']>) ?? {}
   const names = (panel.options.names as string[]) ?? Object.keys(values)
   if (!names.length) return null
   return (
     <Panel title={panel.title} flush>
       <dl className="divide-y divide-line">
-        {names.map((name) => {
-          const value = values[name] ?? null
-          const shown = label(value)
-          return (
-            <div key={name} className="grid gap-1 px-5 py-4 sm:grid-cols-[minmax(9rem,15rem)_1fr] sm:gap-5">
-              <dt className="text-[12.5px] font-semibold text-dim">{humanise(name)}</dt>
-              <dd className="min-w-0 break-words text-[var(--text-wd)] text-ink">
-                {shown || <span className="text-faint">—</span>}
-              </dd>
-            </div>
-          )
-        })}
+        {names.map((name) => (
+          <div key={name} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[minmax(9rem,14rem)_1fr] sm:gap-6">
+            <dt className="text-[12.5px] font-semibold text-dim">{humanise(name)}</dt>
+            <dd className="min-w-0 break-words text-[var(--text-wd)] text-ink">
+              <Value value={values[name] ?? null} format={formats[name]} />
+            </dd>
+          </div>
+        ))}
       </dl>
     </Panel>
   )
+}
+
+/**
+ * One value on a detail page.
+ *
+ * A relation is a link, and a many-to-many is a row of links. Clicking the
+ * author on a post to see the author is the reason both screens exist.
+ */
+function Value({ value, format }: { value: Json; format?: ColumnSpec['format'] }) {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-faint">—</span>
+  }
+  if (isReference(value)) return <Reference value={value} />
+  if (Array.isArray(value) && value.length && value.every(isReference)) {
+    return <References values={value as unknown as Ref[]} limit={20} />
+  }
+  if (format) {
+    return (
+      <Cell
+        column={
+          {
+            key: 'v',
+            label: '',
+            align: 'left',
+            width: null,
+            link: false,
+            sort: null,
+            sortable: false,
+            format,
+            help: null,
+            wrap: true,
+            empty: '—',
+            sticky: false,
+            toggle: false,
+            relation: false,
+            multiple: false,
+          } as ColumnSpec
+        }
+        value={value}
+      />
+    )
+  }
+  return <>{label(value)}</>
 }
 
 interface RelatedRow {

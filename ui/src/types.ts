@@ -27,6 +27,7 @@ export interface ColumnSpec {
   sticky: boolean
   toggle: boolean
   relation: boolean
+  multiple: boolean
 }
 
 export interface FilterSpec {

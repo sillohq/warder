@@ -344,26 +344,75 @@ function KeyValue({ value, disabled, onChange, keyLabel, valueLabel }: { value: 
  * A relation picker that searches over the wire.
  *
  * Not a `<select>` of every row: the difference between a foreign key to
- * `Country` and one to `Customer` is four hundred thousand options.
+ * `Country` and one to `Customer` is four hundred thousand options. With
+ * `multiple` it is the many-to-many editor — chips for what is chosen, a
+ * search for what is not.
  */
-function Relation({ id, field, value, disabled, invalid, onChange, endpoint }: { id: string; field: FieldSpec; value: Json; disabled: boolean; invalid: boolean; onChange: (v: Json) => void; endpoint?: string }) {
+function Relation({
+  id,
+  field,
+  value,
+  disabled,
+  invalid,
+  onChange,
+  endpoint,
+}: {
+  id: string
+  field: FieldSpec
+  value: Json
+  disabled: boolean
+  invalid: boolean
+  onChange: (v: Json) => void
+  endpoint?: string
+}) {
+  const multiple = Boolean(field.widget.options.multiple)
   const [term, setTerm] = useState('')
-  const [options, setOptions] = useState<{ id: Json; label: string }[]>([])
+  const [options, setOptions] = useState<Option[]>([])
+  const [known, setKnown] = useState<Record<string, string>>({})
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
-  const chosen = options.find((o) => String(o.id) === String(value))
-  const shown = chosen?.label ?? (value !== null && value !== undefined && value !== '' ? String(value) : '')
+  const chosen: Json[] = multiple ? (Array.isArray(value) ? value : []) : []
+  const single = !multiple && value !== null && value !== undefined && value !== '' ? String(value) : ''
+
+  // Labels for ids the search has not returned. Without this an edit form
+  // opens showing raw numbers for everything already selected.
+  useEffect(() => {
+    if (!endpoint) return
+    const ids = multiple ? chosen.map(String) : single ? [single] : []
+    const unknown = ids.filter((one) => !(one in known))
+    if (!unknown.length) return
+    fetch(`${endpoint}/options/${field.name}?ids=${unknown.join(',')}`, {
+      headers: { Accept: 'application/json' },
+    })
+      .then((response) => (response.ok ? response.json() : { options: [] }))
+      .then((body: { options?: Option[] }) => {
+        const found = Object.fromEntries((body.options ?? []).map((o) => [String(o.id), o.label]))
+        if (Object.keys(found).length) setKnown((current) => ({ ...current, ...found }))
+      })
+      .catch(() => undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint, field.name, multiple, single, JSON.stringify(chosen)])
 
   useEffect(() => {
     if (!endpoint || !open) return
     setLoading(true)
     const controller = new AbortController()
     const timer = setTimeout(() => {
-      fetch(`${endpoint}/options/${field.name}?q=${encodeURIComponent(term)}`, { signal: controller.signal, headers: { Accept: 'application/json' } })
+      fetch(`${endpoint}/options/${field.name}?q=${encodeURIComponent(term)}`, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      })
         .then((response) => (response.ok ? response.json() : { options: [] }))
-        .then((body) => setOptions(body.options ?? []))
+        .then((body: { options?: Option[] }) => {
+          const found = body.options ?? []
+          setOptions(found)
+          setKnown((current) => ({
+            ...current,
+            ...Object.fromEntries(found.map((o) => [String(o.id), o.label])),
+          }))
+        })
         .catch(() => undefined)
         .finally(() => setLoading(false))
     }, 180)
@@ -381,44 +430,85 @@ function Relation({ id, field, value, disabled, invalid, onChange, endpoint }: {
     return () => document.removeEventListener('mousedown', away)
   }, [])
 
+  const name = (one: Json) => known[String(one)] ?? String(one)
+
   if (!endpoint) {
-    return <Input id={id} value={shown} disabled={disabled} invalid={invalid} onChange={(e) => onChange(e.target.value || null)} />
+    return <Input id={id} value={single} disabled={disabled} invalid={invalid} onChange={(e) => onChange(e.target.value || null)} />
   }
 
   return (
     <div ref={box} className="relative">
-      <button
-        type="button"
-        id={id}
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={cn(
-          'flex h-10 w-full items-center justify-between gap-2 rounded-[var(--radius-wd-sm)] bg-sunken px-3.5 text-left text-[var(--text-wd)] ring-1 ring-inset transition-shadow',
-          invalid ? 'ring-red-500' : 'ring-line focus:ring-accent',
-          disabled && 'bg-raised text-dim',
-        )}
-      >
-        <span className={cn('truncate', !shown && 'text-dim')}>{shown || '—'}</span>
-        <span className="flex shrink-0 items-center gap-1">
-          {shown && !disabled && (
-            <span
-              role="button"
-              tabIndex={0}
-              aria-label="Clear"
-              onClick={(event) => {
-                event.stopPropagation()
-                onChange(null)
-              }}
-              className="text-dim hover:text-ink"
-            >
-              <Icon name="x" className="h-3 w-3" />
-            </span>
+      {multiple ? (
+        <div
+          className={cn(
+            'flex min-h-10 flex-wrap items-center gap-2 rounded-[var(--radius-wd-sm)] bg-sunken p-2 ring-1 ring-inset',
+            invalid ? 'ring-red-500' : 'ring-line',
+            disabled && 'bg-raised',
           )}
-          <Icon name="chevronDown" className="h-3 w-3 text-dim" />
-        </span>
-      </button>
+        >
+          {chosen.map((one) => (
+            <span
+              key={String(one)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 py-1 pl-3 pr-1.5 text-[12.5px] font-medium text-accent"
+            >
+              {name(one)}
+              {!disabled && (
+                <button
+                  type="button"
+                  aria-label={`Remove ${name(one)}`}
+                  onClick={() => onChange(chosen.filter((other) => String(other) !== String(one)))}
+                  className="grid h-4 w-4 place-items-center rounded-full hover:bg-accent/20"
+                >
+                  <Icon name="x" className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          ))}
+          {!disabled && (
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-medium text-dim transition-colors hover:bg-raised hover:text-ink"
+            >
+              <Icon name="plus" className="h-3.5 w-3.5" />
+              {chosen.length ? 'Add' : `Choose ${field.label.toLowerCase()}`}
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          id={id}
+          disabled={disabled}
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className={cn(
+            'flex h-10 w-full items-center justify-between gap-2 rounded-[var(--radius-wd-sm)] bg-sunken px-3.5 text-left text-[var(--text-wd)] ring-1 ring-inset transition-shadow',
+            invalid ? 'ring-red-500' : 'ring-line focus:ring-accent',
+            disabled && 'bg-raised text-dim',
+          )}
+        >
+          <span className={cn('truncate', !single && 'text-faint')}>{single ? name(single) : '—'}</span>
+          <span className="flex shrink-0 items-center gap-1">
+            {single && !disabled && (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="Clear"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onChange(null)
+                }}
+                className="text-faint hover:text-ink"
+              >
+                <Icon name="x" className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <Icon name="chevronDown" className="h-3.5 w-3.5 text-faint" />
+          </span>
+        </button>
+      )}
 
       {open && (
         <div className="wd-in absolute z-40 mt-2 w-full overflow-hidden rounded-[var(--radius-wd)] bg-surface ring-1 ring-edge shadow-[0_12px_36px_-12px_rgb(0_0_0/0.45)]">
@@ -430,26 +520,56 @@ function Relation({ id, field, value, disabled, invalid, onChange, endpoint }: {
             className="h-11 w-full border-b border-line bg-transparent px-4 text-[var(--text-wd)] outline-none placeholder:text-faint"
           />
           <div role="listbox" className="wd-scroll-y max-h-64 overflow-y-auto py-1.5">
-            {loading && <p className="px-3 py-2 text-[12px] text-dim">Searching…</p>}
-            {!loading && !options.length && <p className="px-3 py-2 text-[12px] text-dim">No matches.</p>}
-            {options.map((option) => (
-              <button
-                key={String(option.id)}
-                type="button"
-                role="option"
-                aria-selected={String(option.id) === String(value)}
-                onClick={() => {
-                  onChange(option.id)
-                  setOpen(false)
-                }}
-                className={cn('flex w-full items-center px-4 py-2.5 text-left text-[13.5px] transition-colors hover:bg-raised', String(option.id) === String(value) && 'bg-raised font-semibold')}
-              >
-                {option.label}
-              </button>
-            ))}
+            {loading && <p className="px-4 py-3 text-[13px] text-faint">Searching…</p>}
+            {!loading && !options.length && <p className="px-4 py-3 text-[13px] text-faint">No matches.</p>}
+            {options.map((option) => {
+              const picked = multiple
+                ? chosen.some((one) => String(one) === String(option.id))
+                : String(option.id) === single
+              return (
+                <button
+                  key={String(option.id)}
+                  type="button"
+                  role="option"
+                  aria-selected={picked}
+                  onClick={() => {
+                    if (multiple) {
+                      onChange(
+                        picked
+                          ? chosen.filter((one) => String(one) !== String(option.id))
+                          : [...chosen, option.id],
+                      )
+                      setTerm('')
+                    } else {
+                      onChange(option.id)
+                      setOpen(false)
+                    }
+                  }}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[13.5px] transition-colors hover:bg-raised',
+                    picked && 'font-semibold text-ink',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'grid h-4 w-4 shrink-0 place-items-center rounded ring-1',
+                      picked ? 'bg-accent text-on-accent ring-accent' : 'ring-edge',
+                    )}
+                  >
+                    {picked && <Icon name="check" className="h-3 w-3" />}
+                  </span>
+                  <span className="truncate">{option.label}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
     </div>
   )
+}
+
+interface Option {
+  id: Json
+  label: string
 }

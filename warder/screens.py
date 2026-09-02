@@ -164,6 +164,27 @@ class List(Declaration):
         return tuple(found)
 
     @property
+    def prefetches(self) -> tuple[str, ...]:
+        """Every relation this list needs prefetched rather than joined.
+
+        A many-to-many cannot be joined into one row — one post with four tags
+        is four rows — so it is fetched separately: one extra query for the
+        page, rather than one per row, which is the N+1 this whole arrangement
+        exists to avoid.
+
+        Which columns are many-to-many is a fact about the model, so the
+        resolver marks them at mount; nothing here guesses.
+        """
+        found: dict[str, None] = {
+            column.name: None
+            for column in self.columns
+            if column.multiple and column.name
+        }
+        for name in self.prefetch_related:
+            found[name] = None
+        return tuple(found)
+
+    @property
     def column_map(self) -> dict[str, Column]:
         return {column.key: column for column in self.columns}
 

@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react'
 import type { ColumnSpec, Json } from '../types'
 import { cn } from './cn'
 import { Icon } from '../components/Icon'
@@ -22,8 +23,19 @@ const UNITS_BINARY = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
 const UNITS_DECIMAL = ['B', 'KB', 'MB', 'GB', 'TB']
 
 export function Cell({ column, value }: { column: ColumnSpec; value: Json }) {
-  const empty = <span className="text-dim">{column.empty}</span>
+  const empty = <span className="text-faint">{column.empty}</span>
   if (value === null || value === undefined || value === '') return empty
+
+  // A relation is a reference, and a reference is something you click. The
+  // author on a post goes to that author, which is the whole point of having
+  // both screens.
+  if (isReference(value)) return <Reference value={value} />
+  if (Array.isArray(value) && value.length && value.every(isReference)) {
+    return (
+      <References values={value as unknown as Ref[]} limit={(column.format.options.limit as number) ?? 4} />
+    )
+  }
+  if (Array.isArray(value) && value.length === 0 && column.multiple) return empty
 
   const { kind, options } = column.format
   const opt = <T,>(name: string, fallback: T): T => (options[name] as T) ?? fallback
@@ -170,6 +182,65 @@ export function Cell({ column, value }: { column: ColumnSpec; value: Json }) {
       return <span className={cn(opt('mono', false) && 'font-mono wd-num text-[11.5px]')}>{clip ? truncate(text, clip) : text}</span>
     }
   }
+}
+
+/** A row on the far side of a relation: `{id, label, href}`. */
+export interface Ref {
+  id: Json
+  label: string
+  href: string | null
+}
+
+export function isReference(value: unknown): value is Ref {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    'label' in (value as object) &&
+    'id' in (value as object)
+  )
+}
+
+export function Reference({ value, subtle }: { value: Ref; subtle?: boolean }) {
+  if (!value.href) return <span className="truncate">{value.label}</span>
+  return (
+    <Link
+      href={value.href}
+      onClick={(event) => event.stopPropagation()}
+      className={cn(
+        'truncate underline-offset-4 transition-colors hover:underline',
+        subtle ? 'text-dim hover:text-accent' : 'text-ink hover:text-accent',
+      )}
+    >
+      {value.label}
+    </Link>
+  )
+}
+
+/** A row of chips, each one a link. What a many-to-many looks like. */
+export function References({ values, limit = 4 }: { values: Ref[]; limit?: number }) {
+  const shown = values.slice(0, limit)
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {shown.map((item) => (
+        <span
+          key={String(item.id)}
+          className="inline-flex max-w-40 rounded-full bg-raised px-2.5 py-1 text-[12px] font-medium text-dim ring-1 ring-inset ring-line transition-colors hover:text-accent hover:ring-accent/40"
+        >
+          {item.href ? (
+            <Link href={item.href} onClick={(e) => e.stopPropagation()} className="truncate">
+              {item.label}
+            </Link>
+          ) : (
+            <span className="truncate">{item.label}</span>
+          )}
+        </span>
+      ))}
+      {values.length > limit && (
+        <span className="text-[11.5px] font-medium text-faint">+{values.length - limit}</span>
+      )}
+    </span>
+  )
 }
 
 // ---------------------------------------------------------------- primitives
