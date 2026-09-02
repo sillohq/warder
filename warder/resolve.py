@@ -403,7 +403,17 @@ def _check_column(column: Column, schema: Schema, model: str) -> list[Declaratio
     if column.name is not None:
         target = schema.resolve(column.name)
         if target is None:
-            problems.append(_missing(label, column.name, schema, column.where))
+            # Named directly rather than through _missing: the label already
+            # carries the reference, and "column 'titel' names 'titel'" is a
+            # sentence nobody should have to read.
+            problems.append(
+                DeclarationError(
+                    f"{label} is not a field of {schema.model.__name__}.",
+                    where=column.where,
+                    got=column.name.split("__")[0],
+                    options=schema.names,
+                )
+            )
             return problems
         if column.related and not target.relational:
             problems.append(
@@ -506,7 +516,14 @@ def _check_field(field: Field, schema: Schema, model: str) -> list[DeclarationEr
     label = f"Resource({model}).form field {field.name!r}"
     target = schema.resolve(field.name)
     if target is None:
-        return [_missing(label, field.name, schema, field.where)]
+        return [
+            DeclarationError(
+                f"{label} is not a field of {schema.model.__name__}.",
+                where=field.where,
+                got=field.name.split("__")[0],
+                options=schema.names,
+            )
+        ]
     if target.kind == "backward":
         return [
             DeclarationError(

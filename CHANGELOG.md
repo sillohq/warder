@@ -33,7 +33,7 @@ All notable changes to Warder are recorded here. The format follows
 - **`When`**, a form condition serialised into props so a conditional field
   appears the instant another field changes, and re-checked on the server before
   a write.
-- 803 tests, and no database connection in any of them.
+- 818 tests, and no database connection in any of them.
 
 - **The resolver.** `Resource(Post)` with no screens becomes a working list,
   form and detail page, derived from the model's own columns at mount. Widgets
@@ -50,6 +50,11 @@ All notable changes to Warder are recorded here. The format follows
 - **`Schema`**, which reads a model in the admin's own terms and works before
   `Tortoise.init`: a relation still held as a string is reported as *unresolved*
   rather than missing, because "cannot check" is not "wrong".
+
+- **`warder check`** and **`warder permissions`**, which take a
+  `module:attribute` target and need no server, no port and no database
+  connection. `check` exits non-zero on the first problem, so a misspelled
+  column fails in CI rather than in production.
 
 ### Notes
 

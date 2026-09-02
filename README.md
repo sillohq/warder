@@ -293,6 +293,26 @@ of them wants Markdown.
 Every derived part is replaced by naming it, and nothing fights a declaration
 that exists.
 
+## Checking without starting the application
+
+```console
+$ warder check app.admin:admin
+Acme Ops: 12 resources, 2 pages, 51 permissions. Every reference resolves.
+
+$ warder permissions app.admin:admin
+post.add
+post.change
+...
+```
+
+`warder check` resolves every declaration against its models exactly as
+`mount()` does, and exits non-zero on the first problem — so a misspelled column
+fails in CI rather than in production. It needs no server, no port and no
+database connection, only the models importable.
+
+`warder permissions` prints what the site declares, which is how you seed a
+fixtures file or write a role against what actually exists.
+
 ## Status
 
 Alpha, and honest about which parts exist.
@@ -303,6 +323,7 @@ Alpha, and honest about which parts exist.
 | ✅ | The site registry, navigation, declared permissions, and the checks that need no ORM |
 | ✅ | The resolver: binding to models, deriving screens, checking every reference |
 | 🚧 | The routes, the Inertia interface, and the bundled assets |
+| ✅ | `warder check` and `warder permissions` |
 | 🚧 | `warder permissions sync`, `warder eject` |
 
 `Admin.check()` and `Admin.bind()` both work today. `Admin.mount()` runs both and

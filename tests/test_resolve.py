@@ -190,7 +190,9 @@ def test_a_clean_resource_reports_nothing():
 
 def test_a_misspelled_column_is_caught():
     problems = check(Resource(Post, list=List(Column("titel"))))
-    assert "not a field of Post" in str(problems[0])
+    assert str(problems[0]).splitlines()[0] == (
+        "Resource(Post).list column 'titel' is not a field of Post."
+    )
 
 
 def test_a_misspelled_column_gets_a_suggestion():
@@ -285,7 +287,7 @@ def test_a_list_sort_over_a_missing_column_is_caught():
 
 def test_a_form_field_that_is_not_a_column_is_caught():
     problems = check(Resource(Post, form=Form(Field("nope"))))
-    assert "names 'nope'" in str(problems[0])
+    assert "form field 'nope' is not a field of Post" in str(problems[0])
 
 
 def test_a_reverse_relation_on_a_form_is_caught():
