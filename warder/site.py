@@ -318,10 +318,16 @@ class Admin:
         self.bind()
         try:
             from warder.routes import build
-        except ImportError as exc:  # pragma: no cover - until routes ships
+        except ImportError as missing:
+            # Almost always the framework: Warder needs the context API, and an
+            # older `sillo-framework` has no `sillo.responses` at all. Naming
+            # the import that failed turns a mystifying NotConfigured into an
+            # actionable one.
             raise NotConfigured(
-                "warder.routes is not available in this build."
-            ) from exc
+                f"Warder's routes could not be imported: {missing}. "
+                "Warder needs Sillo's context API (HttpContext, ctx-first "
+                "handlers, sillo.responses), which is the framework's v1."
+            ) from missing
         build(self, app)
         self.mounted = app
         return self

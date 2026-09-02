@@ -379,7 +379,21 @@ an admin module importing both would have a bug in it that reads as correct code
 
 ## Requirements
 
-Python 3.10 to 3.14 and `sillo-framework`. Nothing else at runtime, and no Node.
+Python 3.10 to 3.14, and **Sillo v1**. Nothing else at runtime, and no Node.
+
+Warder is written against the context API — `HttpContext`, `ctx`-first handlers,
+and the free builders in `sillo.responses`. That is the framework's `main`
+branch and it is not on PyPI yet, so until v1 ships:
+
+```bash
+pip install "sillo-framework @ git+https://github.com/sillohq/core@main"
+pip install warder --no-deps
+```
+
+The dependency is pinned to `>=1.0` rather than loosened to match what is
+published, because the released 0.x has no `sillo.responses` at all — a wheel
+that installed against it would fail at the first request instead of at install
+time.
 
 Working on Warder itself needs Node, but only to rebuild the interface:
 

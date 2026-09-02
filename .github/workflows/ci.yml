@@ -35,7 +35,9 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install "sillo-framework" "tortoise-orm>=0.21" httpx bcrypt
+          # The context API is the framework's v1, which is not on PyPI yet.
+          pip install "sillo-framework @ git+https://github.com/sillohq/core@main"
+          pip install "tortoise-orm>=0.21" httpx bcrypt
           pip install pytest pytest-asyncio pytest-cov ruff mypy
           pip install -e . --no-deps
 

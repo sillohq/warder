@@ -27,9 +27,18 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Typing :: Typed",
 ]
-# The declaration layer needs nothing. Resolving one against a model needs the
-# ORM, and serving it needs the router — both of which are the framework.
-dependencies = ["sillo-framework>=0.3"]
+# Warder is written against the **context API** — `HttpContext`, `ctx`-first
+# handlers, and the free builders in `sillo.responses`. That is Sillo v1, which
+# is on the framework's `main` branch and not yet on PyPI, so this pin will not
+# resolve until v1 ships. Until then, install the framework from git first:
+#
+#     pip install "sillo-framework @ git+https://github.com/sillohq/core@main"
+#     pip install warder --no-deps
+#
+# The pin is left honest rather than loosened to `>=0.3`: the released 0.x has
+# no `sillo.responses` at all, so a wheel that installed against it would fail
+# at the first request instead of at install time.
+dependencies = ["sillo-framework>=1.0"]
 
 [project.urls]
 Homepage = "https://sillo.build"
