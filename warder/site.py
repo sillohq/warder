@@ -86,6 +86,8 @@ class Admin:
         self.slots: dict[str, str] = {}
         self.mounted: typing.Any = None
         self.bound: dict[str, Bound] = {}
+        #: The built interface, once :meth:`mount` has looked for it.
+        self.bundle: typing.Any = None
         self._by_slug: dict[str, Resource] = {}
         self._by_model: dict[type, Resource] = {}
 

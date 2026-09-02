@@ -52,6 +52,12 @@ dev = [
 [project.scripts]
 warder = "warder.console:main"
 
+[tool.hatch.build]
+# The built bundle is generated, so it is in .gitignore -- and hatchling honours
+# VCS ignore files. Naming it here is what puts it in the wheel anyway, which is
+# the whole point of shipping an interface nobody has to build.
+artifacts = ["warder/static/**"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["warder"]
 # The React sources are in the repository and never in the wheel; the built
@@ -59,9 +65,27 @@ packages = ["warder"]
 # panel is not signing up to run Vite.
 exclude = ["ui", "ui/**"]
 
+[tool.hatch.build.targets.wheel.hooks.custom]
+# Runs `npm ci && npm run build` in ui/ before packaging, and fails the build if
+# no manifest comes out -- a wheel without its interface installs cleanly and
+# renders a blank page.
+path = "build_ui.py"
+
 [tool.hatch.build.targets.sdist]
 # The sdist carries ui/ so the wheel is reproducible from source.
-include = ["warder", "ui", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
+include = [
+    "warder",
+    "ui/src",
+    "ui/package.json",
+    "ui/package-lock.json",
+    "ui/tsconfig.json",
+    "ui/vite.config.ts",
+    "build_ui.py",
+    "tests",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

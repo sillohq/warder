@@ -38,6 +38,9 @@ class Author(Model):
     email = fields.CharField(max_length=200, unique=True)
     is_active = fields.BooleanField(default=True)
 
+    def __str__(self) -> str:
+        return self.name
+
     class Meta:
         table = "warder_authors"
 
@@ -65,6 +68,9 @@ class Post(Model):
     secret = PasswordField()
     published_at = fields.DatetimeField(null=True)
     author = fields.ForeignKeyField("models.Author", related_name="posts", null=True)
+
+    def __str__(self) -> str:
+        return self.title
 
     class Meta:
         table = "warder_posts"

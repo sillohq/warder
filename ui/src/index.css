@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* The palette is not defined here. Python writes it into the document as CSS
+   custom properties, from the Theme declaration, so switching from Console to
+   Paper or setting an accent is a keyword in Python and never a rebuild. This
+   file only teaches Tailwind the names. */
+@theme {
+  --color-bg: var(--wd-bg, #fbfbfa);
+  --color-surface: var(--wd-surface, #ffffff);
+  --color-raised: var(--wd-raised, #f4f4f3);
+  --color-ink: var(--wd-ink, #16181d);
+  --color-dim: var(--wd-dim, #6b7280);
+  --color-line: var(--wd-line, #e4e4e7);
+  --color-accent: var(--wd-accent, #4f46e5);
+
+  --radius-wd: var(--wd-radius, 6px);
+  --font-sans: var(--wd-font, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--wd-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+.wd-body {
+  margin: 0;
+  background: var(--wd-bg, #fbfbfa);
+  color: var(--wd-ink, #16181d);
+  font-family: var(--wd-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--wd-text, 13px);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ids, money and timestamps are compared down a column, so their digits have
+   to line up. Proportional numerals make two different ids look alike. */
+.wd-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.wd-row {
+  height: var(--wd-row, 36px);
+}
+
+/* A focus ring you can actually see, on the one accent colour. Removing it is
+   how an admin becomes unusable for anyone navigating by keyboard, which in an
+   admin is most people after the first week. */
+.wd-focus {
+  outline: 2px solid var(--wd-accent, #4f46e5);
+  outline-offset: 1px;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--wd-accent, #4f46e5);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+/* Wide content scrolls inside its own box; the page itself never does. */
+.wd-scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

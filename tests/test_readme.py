@@ -176,11 +176,17 @@ def test_the_themes_in_the_table():
     assert Admin(theme=Theme.native()).theme.style == "native"
 
 
-def test_mount_is_honest_about_not_being_finished():
-    from warder.errors import NotConfigured
+def test_mount_registers_routes_on_the_application():
+    from orm import Post as RealPost
 
-    with pytest.raises(NotConfigured, match=r"warder\.routes"):
-        Admin().mount(object())
+    from warder.routes import routes
+
+    admin = Admin(prefix="/ops").add(Resource(RealPost))
+    admin.bind()
+    paths = {route.raw_path for route in routes(admin)}
+    assert "/ops/post" in paths
+    assert "/ops/post/{id}/edit" in paths
+    assert "/ops/login" in paths
 
 
 def test_a_bare_resource_derives_all_three_screens():
