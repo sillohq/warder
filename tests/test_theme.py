@@ -49,15 +49,35 @@ def test_an_accent_can_differ_by_mode():
     assert theme.css_variables("dark")["--wd-accent"] == "#eee"
 
 
-def test_density_scales_the_row_height():
-    assert Theme(density="compact").css_variables()["--wd-row"] == "31px"
-    assert Theme(density="normal").css_variables()["--wd-row"] == "36px"
-    assert Theme(density="relaxed").css_variables()["--wd-row"] == "43px"
+def test_density_scales_what_a_person_can_feel():
+    # Row height, cell padding and page padding — not the font. A "compact"
+    # setting that only shrinks the text is a smaller font, not a denser table.
+    normal = Theme(density="normal").css_variables()
+    compact = Theme(density="compact").css_variables()
+    relaxed = Theme(density="relaxed").css_variables()
+    for token in ("--wd-row", "--wd-cell-x", "--wd-pad"):
+        assert _px(compact[token]) < _px(normal[token]) < _px(relaxed[token])
+    assert compact["--wd-text"] == normal["--wd-text"]
+
+
+def test_the_default_row_is_roomy_enough_to_scan():
+    assert _px(Theme().css_variables()["--wd-row"]) >= 48
+
+
+def _px(value: str) -> int:
+    return int(value.removesuffix("px"))
 
 
 def test_density_leaves_non_pixel_values_alone():
     theme = Theme(density="compact", tokens={"row": "2rem"})
     assert theme.css_variables()["--wd-row"] == "2rem"
+
+
+def test_every_style_defines_the_spacing_tokens():
+    # Row height, cell padding, page padding, sidebar and header width are all
+    # tokens, which is what makes density a real setting.
+    for tokens in STYLES.values():
+        assert {"row", "cell-x", "pad", "sidebar", "header"} <= set(tokens)
 
 
 def test_arbitrary_tokens_can_be_set():

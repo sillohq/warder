@@ -1,21 +1,41 @@
 @import "tailwindcss";
 
-/* The palette is not defined here. Python writes it into the document as CSS
-   custom properties, from the Theme declaration, so switching from Console to
-   Paper or setting an accent is a keyword in Python and never a rebuild. This
-   file only teaches Tailwind the names. */
-@theme {
-  --color-bg: var(--wd-bg, #fbfbfa);
-  --color-surface: var(--wd-surface, #ffffff);
-  --color-raised: var(--wd-raised, #f4f4f3);
-  --color-ink: var(--wd-ink, #16181d);
-  --color-dim: var(--wd-dim, #6b7280);
-  --color-line: var(--wd-line, #e4e4e7);
-  --color-accent: var(--wd-accent, #4f46e5);
+/* The palette is not defined here.
+   Python writes it into the document as custom properties, from the Theme
+   declaration, so switching from Console to Paper — or changing the accent, or
+   the density — is a keyword in Python and never a rebuild. This file only
+   teaches Tailwind the names.
 
-  --radius-wd: var(--wd-radius, 6px);
-  --font-sans: var(--wd-font, ui-sans-serif, system-ui, sans-serif);
+   Inter is named first and never fetched. Nothing in this bundle reaches a CDN,
+   because an admin has to work on an air-gapped network and under a
+   Content-Security-Policy that forbids third-party anything; anyone who has
+   Inter installed gets it, and everybody else gets their system's own. */
+@theme {
+  --color-bg: var(--wd-bg, #ffffff);
+  --color-surface: var(--wd-surface, #fafafa);
+  --color-raised: var(--wd-raised, #f4f4f5);
+  --color-sunken: var(--wd-sunken, #ffffff);
+  --color-ink: var(--wd-ink, #0a0a0a);
+  --color-dim: var(--wd-dim, #666666);
+  --color-faint: var(--wd-faint, #999999);
+  --color-line: var(--wd-line, #eaeaea);
+  --color-edge: var(--wd-edge, #e0e0e0);
+  --color-accent: var(--wd-accent, #fc0345);
+  --color-on-accent: var(--wd-on-accent, #ffffff);
+
+  --radius-wd: var(--wd-radius, 10px);
+  --radius-wd-sm: var(--wd-radius-sm, 7px);
+  --font-sans: var(--wd-font, Inter, ui-sans-serif, system-ui, sans-serif);
   --font-mono: var(--wd-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+
+  --text-wd: var(--wd-text, 14px);
+  --text-wd-sm: var(--wd-small, 12.5px);
+  --text-wd-lg: var(--wd-heading, 22px);
+
+  --spacing-page: var(--wd-pad, 32px);
+  --spacing-cell: var(--wd-cell-x, 20px);
+  --spacing-sidebar: var(--wd-sidebar, 248px);
+  --spacing-header: var(--wd-header, 58px);
 }
 
 :root {
@@ -24,42 +44,61 @@
 
 .wd-body {
   margin: 0;
-  background: var(--wd-bg, #fbfbfa);
-  color: var(--wd-ink, #16181d);
-  font-family: var(--wd-font, ui-sans-serif, system-ui, sans-serif);
-  font-size: var(--wd-text, 13px);
+  background: var(--wd-bg, #ffffff);
+  color: var(--wd-ink, #0a0a0a);
+  font-family: var(--wd-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--wd-text, 14px);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Ids, money and timestamps are compared down a column, so their digits have
-   to line up. Proportional numerals make two different ids look alike. */
-.wd-num {
-  font-variant-numeric: tabular-nums;
+/* Ids, money and timestamps are read down a column, so their digits have to
+   line up. Proportional numerals make two different ids look alike. */
+.wd-num { font-variant-numeric: tabular-nums; }
+
+.wd-row { height: var(--wd-row, 52px); }
+.wd-cell { padding-left: var(--wd-cell-x, 20px); padding-right: var(--wd-cell-x, 20px); }
+.wd-pad { padding: var(--wd-pad, 32px); }
+
+.wd-title {
+  font-size: var(--wd-heading, 22px);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
 }
 
-.wd-row {
-  height: var(--wd-row, 36px);
+.wd-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--wd-faint, #999);
 }
 
-/* A focus ring you can actually see, on the one accent colour. Removing it is
-   how an admin becomes unusable for anyone navigating by keyboard, which in an
-   admin is most people after the first week. */
-.wd-focus {
-  outline: 2px solid var(--wd-accent, #4f46e5);
-  outline-offset: 1px;
-}
-
+/* A focus ring you can see, in the one accent colour. Removing it is how an
+   admin becomes unusable for anyone working by keyboard — which, in an admin,
+   is most people by the second week. */
 *:focus-visible {
-  outline: 2px solid var(--wd-accent, #4f46e5);
-  outline-offset: 1px;
-  border-radius: 3px;
+  outline: 2px solid var(--wd-accent, #fc0345);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Wide content scrolls inside its own box; the page itself never does. */
-.wd-scroll-x {
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+.wd-scroll-x { overflow-x: auto; overscroll-behavior-x: contain; }
+
+.wd-scroll-y::-webkit-scrollbar { width: 10px; height: 10px; }
+.wd-scroll-y::-webkit-scrollbar-thumb {
+  background: var(--wd-edge, #e0e0e0);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
+.wd-scroll-y::-webkit-scrollbar-track { background: transparent; }
+
+@keyframes wd-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.wd-in { animation: wd-in 0.14s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -29,7 +29,7 @@ export function FieldInput({
   const message = Array.isArray(error) ? error.join(' ') : error
 
   return (
-    <div className={cn(field.span > 1 && `sm:col-span-${field.span}`)}>
+    <div className={cn(field.span > 1 && 'sm:col-span-2')}>
       {field.widget.kind !== 'switch' && (
         <Label htmlFor={id} required={field.required}>
           {field.label}
@@ -253,16 +253,16 @@ function Markdown({ id, value, height, disabled, invalid, onChange }: { id: stri
   const [preview, setPreview] = useState(false)
   return (
     <div className="rounded-[var(--radius-wd)] ring-1 ring-inset ring-line">
-      <div className="flex items-center justify-end gap-1 border-b border-line px-2 py-1">
-        <button type="button" onClick={() => setPreview(false)} className={cn('rounded px-2 py-0.5 text-[11.5px]', !preview ? 'bg-raised text-ink' : 'text-dim')}>
+      <div className="flex items-center justify-end gap-1 border-b border-line px-2.5 py-2">
+        <button type="button" onClick={() => setPreview(false)} className={cn('rounded px-2.5 py-1 text-[12px] font-medium transition-colors', !preview ? 'bg-raised text-ink' : 'text-dim hover:text-ink')}>
           Write
         </button>
-        <button type="button" onClick={() => setPreview(true)} className={cn('rounded px-2 py-0.5 text-[11.5px]', preview ? 'bg-raised text-ink' : 'text-dim')}>
+        <button type="button" onClick={() => setPreview(true)} className={cn('rounded px-2.5 py-1 text-[12px] font-medium transition-colors', preview ? 'bg-raised text-ink' : 'text-dim hover:text-ink')}>
           Preview
         </button>
       </div>
       {preview ? (
-        <div className="overflow-auto whitespace-pre-wrap p-2.5 text-[13px] leading-relaxed" style={{ height }}>
+        <div className="wd-scroll-y overflow-auto whitespace-pre-wrap p-4 text-[var(--text-wd)] leading-[1.75]" style={{ height }}>
           {value || <span className="text-dim">Nothing to preview.</span>}
         </div>
       ) : (
@@ -273,7 +273,7 @@ function Markdown({ id, value, height, disabled, invalid, onChange }: { id: stri
           aria-invalid={invalid || undefined}
           onChange={(e) => onChange(e.target.value)}
           style={{ height }}
-          className="w-full resize-y bg-transparent p-2.5 font-mono text-[12.5px] leading-relaxed outline-none"
+          className="w-full resize-y bg-transparent p-4 font-mono text-[13px] leading-[1.7] outline-none"
         />
       )}
     </div>
@@ -284,9 +284,9 @@ function Tags({ value, disabled, onChange }: { value: Json; disabled: boolean; o
   const items = Array.isArray(value) ? (value as Json[]) : []
   const [draft, setDraft] = useState('')
   return (
-    <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-wd)] bg-surface p-1.5 ring-1 ring-inset ring-line">
+    <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-wd-sm)] bg-sunken p-2.5 ring-1 ring-inset ring-line">
       {items.map((item, i) => (
-        <span key={i} className="inline-flex items-center gap-1 rounded bg-raised px-1.5 py-0.5 text-[11.5px]">
+        <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-2.5 py-1 text-[12.5px] font-medium text-accent">
           {String(item)}
           {!disabled && (
             <button type="button" aria-label={`Remove ${item}`} onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-dim hover:text-ink">
@@ -395,8 +395,8 @@ function Relation({ id, field, value, disabled, invalid, onChange, endpoint }: {
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn(
-          'flex h-8 w-full items-center justify-between gap-2 rounded-[var(--radius-wd)] bg-surface px-2.5 text-left text-[13px] ring-1 ring-inset',
-          invalid ? 'ring-red-500' : 'ring-line',
+          'flex h-10 w-full items-center justify-between gap-2 rounded-[var(--radius-wd-sm)] bg-sunken px-3.5 text-left text-[var(--text-wd)] ring-1 ring-inset transition-shadow',
+          invalid ? 'ring-red-500' : 'ring-line focus:ring-accent',
           disabled && 'bg-raised text-dim',
         )}
       >
@@ -421,15 +421,15 @@ function Relation({ id, field, value, disabled, invalid, onChange, endpoint }: {
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-[var(--radius-wd)] bg-surface ring-1 ring-line shadow-[0_8px_24px_-12px_rgb(0_0_0/0.3)]">
+        <div className="wd-in absolute z-40 mt-2 w-full overflow-hidden rounded-[var(--radius-wd)] bg-surface ring-1 ring-edge shadow-[0_12px_36px_-12px_rgb(0_0_0/0.45)]">
           <input
             autoFocus
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             placeholder="Search…"
-            className="h-8 w-full border-b border-line bg-transparent px-2.5 text-[13px] outline-none placeholder:text-dim"
+            className="h-11 w-full border-b border-line bg-transparent px-4 text-[var(--text-wd)] outline-none placeholder:text-faint"
           />
-          <div role="listbox" className="max-h-56 overflow-y-auto py-1">
+          <div role="listbox" className="wd-scroll-y max-h-64 overflow-y-auto py-1.5">
             {loading && <p className="px-3 py-2 text-[12px] text-dim">Searching…</p>}
             {!loading && !options.length && <p className="px-3 py-2 text-[12px] text-dim">No matches.</p>}
             {options.map((option) => (
@@ -442,7 +442,7 @@ function Relation({ id, field, value, disabled, invalid, onChange, endpoint }: {
                   onChange(option.id)
                   setOpen(false)
                 }}
-                className={cn('flex w-full items-center px-3 py-1.5 text-left text-[12.5px] hover:bg-raised', String(option.id) === String(value) && 'bg-raised')}
+                className={cn('flex w-full items-center px-4 py-2.5 text-left text-[13.5px] transition-colors hover:bg-raised', String(option.id) === String(value) && 'bg-raised font-semibold')}
               >
                 {option.label}
               </button>

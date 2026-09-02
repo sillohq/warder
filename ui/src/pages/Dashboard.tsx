@@ -1,31 +1,43 @@
+import { Link } from '@inertiajs/react'
 import type { CardSpec, DashboardPage, Json } from '../types'
 import { Shell } from '../components/Shell'
 import { cn } from '../lib/cn'
 import { label, money, truncate } from '../lib/format'
-import { Empty, Panel } from '../components/ui'
+import { Empty, Panel, Stat } from '../components/ui'
 import { Icon } from '../components/Icon'
 
 export default function Dashboard({ page }: { page: DashboardPage }) {
-  if (!page.cards.length) {
-    return (
-      <Shell title={page.title}>
-        <Empty title={page.title} description="No dashboard cards are declared yet." />
-      </Shell>
-    )
-  }
   return (
     <Shell title={page.title}>
-      <header className="mb-3">
-        <h2 className="text-[16px] font-semibold tracking-tight">{page.title}</h2>
-        {page.description && <p className="mt-0.5 text-[12.5px] text-dim">{page.description}</p>}
+      <header className="mb-6">
+        <h2 className="wd-title">{page.title}</h2>
+        <p className="mt-1.5 text-[13px] text-dim">
+          {page.description ?? 'Everything at a glance.'}
+        </p>
       </header>
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${page.columns}, minmax(0, 1fr))` }}>
-        {page.cards.map((card) => (
-          <div key={card.key} style={{ gridColumn: `span ${Math.min(card.span, page.columns)}` }}>
-            <Card card={card} />
-          </div>
-        ))}
-      </div>
+
+      {page.cards.length === 0 ? (
+        <Empty
+          title="No cards yet"
+          description="Add Card.number, Card.chart or Card.table to a Dashboard and they appear here."
+          icon="chart"
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {page.cards.map((card) => (
+            <div
+              key={card.key}
+              className={cn(
+                card.span >= 4 && 'lg:col-span-4',
+                card.span === 3 && 'lg:col-span-3',
+                card.span === 2 && 'sm:col-span-2',
+              )}
+            >
+              <Card card={card} />
+            </div>
+          ))}
+        </div>
+      )}
     </Shell>
   )
 }
@@ -33,25 +45,33 @@ export default function Dashboard({ page }: { page: DashboardPage }) {
 function Card({ card }: { card: CardSpec }) {
   switch (card.kind) {
     case 'number': {
-      const value = typeof card.data === 'object' && card.data ? (card.data as Record<string, Json>).value : card.data
-      const delta = typeof card.data === 'object' && card.data ? (card.data as Record<string, Json>).delta : null
+      const raw = card.data && typeof card.data === 'object' && !Array.isArray(card.data)
+        ? (card.data as Record<string, Json>)
+        : null
+      const value = raw ? raw.value : card.data
+      const delta = raw ? raw.delta : null
       const currency = card.options.currency as string | undefined
+      const up = Number(delta) >= 0
       return (
-        <section className="rounded-[var(--radius-wd)] bg-surface p-3.5 ring-1 ring-line">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-dim">
-            <Icon name={card.icon} className="h-3.5 w-3.5" />
-            {card.title}
-          </p>
-          <p className="wd-num mt-1.5 text-[24px] font-semibold leading-none tracking-tight">
-            {currency ? money(Number(value ?? 0), currency, 2) : new Intl.NumberFormat().format(Number(value ?? 0))}
-          </p>
-          {delta !== null && delta !== undefined && (
-            <p className={cn('wd-num mt-1 text-[11.5px]', Number(delta) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-              {Number(delta) >= 0 ? '↑' : '↓'} {Math.abs(Number(delta))}%
-            </p>
-          )}
-          {card.description && <p className="mt-1 text-[11.5px] text-dim">{card.description}</p>}
-        </section>
+        <Stat
+          icon={card.icon}
+          label={card.title}
+          value={
+            currency
+              ? money(Number(value ?? 0), currency, 2)
+              : Number(value ?? 0).toLocaleString()
+          }
+          sub={
+            delta !== null && delta !== undefined ? (
+              <span className={cn('wd-num font-semibold', up ? 'text-emerald-500' : 'text-red-500')}>
+                {up ? '↑' : '↓'} {Math.abs(Number(delta))}%{' '}
+                <span className="font-normal text-faint">{card.description ?? ''}</span>
+              </span>
+            ) : (
+              card.description
+            )
+          }
+        />
       )
     }
 
@@ -59,15 +79,22 @@ function Card({ card }: { card: CardSpec }) {
       const points = (Array.isArray(card.data) ? card.data : []) as { label: string; value: number }[]
       const peak = Math.max(1, ...points.map((p) => Number(p.value) || 0))
       return (
-        <Panel title={card.title}>
+        <Panel title={card.title} description={card.description}>
           {points.length === 0 ? (
-            <p className="py-6 text-center text-[12.5px] text-dim">No data.</p>
+            <p className="py-10 text-center text-[13px] text-faint">No data yet.</p>
           ) : (
-            <div className="flex h-32 items-end gap-1">
+            <div className="flex h-44 items-end gap-2">
               {points.map((point, i) => (
-                <div key={i} className="group flex flex-1 flex-col items-center justify-end gap-1" title={`${point.label}: ${point.value}`}>
-                  <span className="w-full rounded-t bg-accent/70 transition-colors group-hover:bg-accent" style={{ height: `${(Number(point.value) / peak) * 100}%` }} />
-                  <span className="w-full truncate text-center text-[10px] text-dim">{point.label}</span>
+                <div key={i} className="group flex flex-1 flex-col items-center justify-end gap-2">
+                  <span className="wd-num text-[11.5px] font-semibold text-dim opacity-0 transition-opacity group-hover:opacity-100">
+                    {Number(point.value).toLocaleString()}
+                  </span>
+                  <span
+                    className="w-full rounded-t-[4px] bg-accent/75 transition-colors group-hover:bg-accent"
+                    style={{ height: `${Math.max(2, (Number(point.value) / peak) * 100)}%` }}
+                    title={`${point.label}: ${point.value}`}
+                  />
+                  <span className="w-full truncate text-center text-[11px] text-faint">{point.label}</span>
                 </div>
               ))}
             </div>
@@ -79,29 +106,32 @@ function Card({ card }: { card: CardSpec }) {
     case 'table':
     case 'list': {
       const rows = (Array.isArray(card.data) ? card.data : []) as Record<string, Json>[]
-      const keys = rows.length ? Object.keys(rows[0]).slice(0, 4) : []
+      const keys = Object.keys(rows[0] ?? {}).slice(0, 4)
+      const href = card.options.link ? String(card.options.link) : null
       return (
         <Panel
           title={card.title}
+          description={card.description}
+          flush
           actions={
-            card.options.link ? (
-              <a href={String(card.options.link)} className="inline-flex items-center gap-1 text-[11.5px] text-dim hover:text-ink">
-                View all <Icon name="chevronRight" className="h-3 w-3" />
-              </a>
+            href ? (
+              <Link href={href} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-accent hover:underline">
+                View all <Icon name="chevronRight" className="h-3.5 w-3.5" />
+              </Link>
             ) : undefined
           }
         >
           {rows.length === 0 ? (
-            <p className="py-4 text-center text-[12.5px] text-dim">Nothing yet.</p>
+            <p className="py-10 text-center text-[13px] text-faint">Nothing yet.</p>
           ) : (
             <div className="wd-scroll-x">
-              <table className="w-full text-[12.5px]">
+              <table className="w-full text-[13.5px]">
                 <tbody>
                   {rows.map((row, i) => (
                     <tr key={i} className="border-b border-line last:border-0">
                       {keys.map((key) => (
-                        <td key={key} className="truncate py-1.5 pr-3">
-                          {truncate(label(row[key]), 40)}
+                        <td key={key} className="wd-cell truncate py-3">
+                          {truncate(label(row[key]), 44)}
                         </td>
                       ))}
                     </tr>
@@ -114,13 +144,27 @@ function Card({ card }: { card: CardSpec }) {
       )
     }
 
-    default:
+    default: {
+      const props = (card.data && typeof card.data === 'object' ? card.data : {}) as Record<string, Json>
+      const entries = Object.entries(props)
       return (
-        <Panel title={card.title}>
-          <p className="text-[12.5px] text-dim">
-            This card renders “{String(card.options.component ?? 'a component')}”, which your own build supplies.
-          </p>
+        <Panel title={card.title} description={card.description}>
+          {entries.length === 0 ? (
+            <p className="py-6 text-center text-[13px] text-faint">
+              Mount “{String(card.options.component ?? 'this component')}” from your own build.
+            </p>
+          ) : (
+            <dl className="space-y-2.5">
+              {entries.map(([name, value]) => (
+                <div key={name} className="flex justify-between gap-4 text-[13.5px]">
+                  <dt className="text-dim">{name}</dt>
+                  <dd className="wd-num font-semibold">{label(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </Panel>
       )
+    }
   }
 }

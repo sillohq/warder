@@ -5,22 +5,26 @@ different values, and all four are Tailwind underneath. So this is a choice
 about defaults, not about architecture, and switching is one keyword rather
 than a fork.
 
-**Console** *(the default)* — dense, quiet, keyboard-first. Near-black and
-near-white rather than pure, one restrained accent used only for focus and
-primary actions, hairline borders instead of shadows, tabular numerals
-everywhere, monospace for ids and timestamps, 36px rows. Right because an
-admin is a tool for people who are in it all day: it reads as infrastructure,
-gets out of the way, and is the one direction that does not fight a dense
-table.
+**Console** *(the default)* — quiet, roomy, keyboard-first. Near-black and
+near-white rather than pure, one accent used for focus and primary actions,
+hairline borders, tabular numerals everywhere, monospace for ids and
+timestamps. 52px rows and 20px cells, because a table you read all day is not
+a spreadsheet and the row you are looking at should be obvious without
+squinting. Right because an admin is a tool for people who are in it all day:
+it reads as infrastructure and gets out of the way.
 
-**Paper** — light, generous, editorial. Serif headings, 15px body, 48px rows,
-cards with soft shadows. Right when the admin is a content tool used
-occasionally by people who do not think of themselves as operators. Shows
-about half as much per screen, which is the trade.
+Every measurement here is a token, including the ones people usually hard-code
+— row height, cell padding, page padding, sidebar width. That is what makes
+``density="compact"`` a real setting rather than a smaller font.
 
-**Grid** — spreadsheet-first. Ruled cells, frozen header, 28px rows, no card
-chrome at all. Right for bulk data work — reconciliation, imports, moderation
-queues — and wrong for anything with long-form fields.
+**Paper** — light, generous, editorial. 15px body, 64px rows, warm neutrals and
+soft shadows. Right when the admin is a content tool used occasionally by
+people who do not think of themselves as operators. Shows about half as much
+per screen, which is the trade.
+
+**Grid** — spreadsheet-first. Ruled cells, 38px rows, 4px radius, almost no
+chrome. Right for bulk data work — reconciliation, imports, moderation queues —
+and wrong for anything with long-form fields.
 
 **Native** — no opinion. Inherits the host application's custom properties, so
 the admin looks like the product it is a tab inside.
@@ -39,51 +43,81 @@ __all__ = ["STYLES", "Theme"]
 #: dark values; ``Theme.css_variables`` flattens one into ``--wd-*`` names.
 STYLES: dict[str, dict[str, tuple[str, str]]] = {
     "console": {
-        "bg": ("#fbfbfa", "#101114"),
-        "surface": ("#ffffff", "#17181d"),
-        "raised": ("#f4f4f3", "#1e2026"),
-        "ink": ("#16181d", "#e8e8ea"),
-        "dim": ("#6b7280", "#9095a1"),
-        "line": ("#e4e4e7", "#26282e"),
-        "accent": ("#4f46e5", "#818cf8"),
-        "radius": ("6px", "6px"),
-        "row": ("36px", "36px"),
-        "text": ("13px", "13px"),
-        "heading": ("13px", "13px"),
-        "shadow": ("none", "none"),
-        "font": ("ui-sans-serif, system-ui, sans-serif",) * 2,
+        "bg": ("#ffffff", "#050505"),
+        "surface": ("#fafafa", "#0a0a0a"),
+        "raised": ("#f4f4f5", "#121212"),
+        "sunken": ("#ffffff", "#080808"),
+        "ink": ("#0a0a0a", "#fafafa"),
+        "dim": ("#666666", "#8a8a8a"),
+        "faint": ("#999999", "#5a5a5a"),
+        "line": ("#eaeaea", "#1c1c1c"),
+        "edge": ("#e0e0e0", "#262626"),
+        "accent": ("#fc0345", "#fc0345"),
+        "on-accent": ("#ffffff", "#ffffff"),
+        "radius": ("10px", "10px"),
+        "radius-sm": ("7px", "7px"),
+        "row": ("52px", "52px"),
+        "cell-x": ("20px", "20px"),
+        "pad": ("32px", "32px"),
+        "sidebar": ("248px", "248px"),
+        "header": ("58px", "58px"),
+        "text": ("14px", "14px"),
+        "small": ("12.5px", "12.5px"),
+        "heading": ("22px", "22px"),
+        "shadow": ("0 1px 2px rgb(0 0 0 / 0.05)", "0 1px 2px rgb(0 0 0 / 0.4)"),
+        "font": ("Inter, ui-sans-serif, system-ui, -apple-system, sans-serif",) * 2,
         "mono": ("ui-monospace, SFMono-Regular, Menlo, monospace",) * 2,
     },
     "paper": {
         "bg": ("#fdfcfa", "#14130f"),
         "surface": ("#ffffff", "#1c1b17"),
         "raised": ("#f7f5f0", "#232219"),
+        "sunken": ("#ffffff", "#191814"),
         "ink": ("#1c1a17", "#eceae4"),
         "dim": ("#78716c", "#a8a29e"),
+        "faint": ("#a8a29e", "#6b665f"),
         "line": ("#e7e2d9", "#2c2a24"),
+        "edge": ("#ddd6ca", "#37342c"),
         "accent": ("#9a3412", "#fb923c"),
-        "radius": ("10px", "10px"),
-        "row": ("48px", "48px"),
+        "on-accent": ("#ffffff", "#1c1b17"),
+        "radius": ("14px", "14px"),
+        "radius-sm": ("9px", "9px"),
+        "row": ("64px", "64px"),
+        "cell-x": ("24px", "24px"),
+        "pad": ("44px", "44px"),
+        "sidebar": ("264px", "264px"),
+        "header": ("64px", "64px"),
         "text": ("15px", "15px"),
-        "heading": ("18px", "18px"),
+        "small": ("13px", "13px"),
+        "heading": ("26px", "26px"),
         "shadow": ("0 1px 3px rgb(0 0 0 / 0.07)", "0 1px 3px rgb(0 0 0 / 0.4)"),
-        "font": ("ui-sans-serif, system-ui, sans-serif",) * 2,
+        "font": ("Inter, ui-sans-serif, system-ui, sans-serif",) * 2,
         "mono": ("ui-monospace, Menlo, monospace",) * 2,
     },
     "grid": {
         "bg": ("#ffffff", "#0b0d10"),
         "surface": ("#ffffff", "#111418"),
         "raised": ("#f8fafc", "#161a1f"),
+        "sunken": ("#ffffff", "#0e1114"),
         "ink": ("#0f172a", "#e2e8f0"),
         "dim": ("#64748b", "#94a3b8"),
-        "line": ("#cbd5e1", "#1f262e"),
+        "faint": ("#94a3b8", "#5b6774"),
+        "line": ("#e2e8f0", "#1f262e"),
+        "edge": ("#cbd5e1", "#2b333c"),
         "accent": ("#0284c7", "#38bdf8"),
-        "radius": ("2px", "2px"),
-        "row": ("28px", "28px"),
-        "text": ("12px", "12px"),
-        "heading": ("12px", "12px"),
+        "on-accent": ("#ffffff", "#0b0d10"),
+        "radius": ("4px", "4px"),
+        "radius-sm": ("3px", "3px"),
+        "row": ("38px", "38px"),
+        "cell-x": ("12px", "12px"),
+        "pad": ("20px", "20px"),
+        "sidebar": ("224px", "224px"),
+        "header": ("48px", "48px"),
+        "text": ("13px", "13px"),
+        "small": ("12px", "12px"),
+        "heading": ("18px", "18px"),
         "shadow": ("none", "none"),
-        "font": ("ui-sans-serif, system-ui, sans-serif",) * 2,
+        "font": ("Inter, ui-sans-serif, system-ui, sans-serif",) * 2,
         "mono": ("ui-monospace, SFMono-Regular, monospace",) * 2,
     },
 }
@@ -93,13 +127,22 @@ STYLES: dict[str, dict[str, tuple[str, str]]] = {
 #: height, and design systems rarely name one.
 STYLES["native"] = {
     "radius": ("8px", "8px"),
-    "row": ("40px", "40px"),
+    "radius-sm": ("6px", "6px"),
+    "row": ("52px", "52px"),
+    "cell-x": ("20px", "20px"),
+    "pad": ("32px", "32px"),
+    "sidebar": ("248px", "248px"),
+    "header": ("58px", "58px"),
     "text": ("14px", "14px"),
-    "heading": ("14px", "14px"),
+    "small": ("12.5px", "12.5px"),
+    "heading": ("22px", "22px"),
     "shadow": ("none", "none"),
 }
 
-#: Extra spacing per density, as a multiplier on the row height.
+#: How much room a density gives back, applied to the measurements a person can
+#: actually feel: row height, cell padding, page padding. Never the font — a
+#: "compact" setting that only shrinks the text is a smaller font, not a denser
+#: table.
 DENSITIES = {"compact": 0.86, "normal": 1.0, "relaxed": 1.2}
 
 
@@ -213,10 +256,12 @@ class Theme(Declaration):
             base["mono"] = (self.mono, self.mono)
         for name, value in self.tokens.items():
             base[name] = _pair(value)
-        if "row" in base:
-            base["row"] = tuple(  # type: ignore[assignment]
-                _scale(height, DENSITIES[self.density]) for height in base["row"]
-            )
+        factor = DENSITIES[self.density]
+        for name in ("row", "cell-x", "pad"):
+            if name in base:
+                base[name] = tuple(  # type: ignore[assignment]
+                    _scale(length, factor) for length in base[name]
+                )
         return base
 
     def css_variables(self, mode: str = "light") -> dict[str, str]:

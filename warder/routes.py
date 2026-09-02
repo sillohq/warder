@@ -21,6 +21,7 @@ full document for a fresh tab, with the same props either way.
 
 from __future__ import annotations
 
+import json as jsonlib
 import os
 import secrets
 import typing
@@ -47,6 +48,10 @@ __all__ = ["build", "render_list", "routes"]
 
 #: Where a mutation's message waits for the redirect that follows it.
 FLASH = "_warder_flash"
+
+#: The most rows one export will produce. An unbounded export is the easiest
+#: way for a signed-in user to take the process down by accident.
+EXPORT_LIMIT = 50_000
 
 
 def build(admin: Admin, app: typing.Any) -> None:
@@ -192,6 +197,12 @@ def routes(admin: Admin, assets: Assets | None = None) -> list[Route]:
             ),
             Route(
                 base, site.create(slug), methods=["POST"], name=f"{name}.{slug}.create"
+            ),
+            Route(
+                f"{base}/export",
+                site.export(slug),
+                methods=["GET"],
+                name=f"{name}.{slug}.export",
             ),
             Route(
                 f"{base}/options/{{field}}",
@@ -570,6 +581,64 @@ class _Site:
             )
         return inertia.redirect(ctx, fallback, status=303)
 
+    # ---------------------------------------------------------------- export
+
+    def export(self, slug: str) -> typing.Callable[..., typing.Any]:
+        """Download the filtered set as CSV or JSON.
+
+        The *filtered* set, not the selection and not the page: "export" means
+        "everything I am looking at", and making somebody select forty thousand
+        rows first is a way of not having the feature.
+
+        Capped, and the cap is not a formality — an unbounded export is the
+        easiest way for a signed-in user to take a process down by accident.
+        """
+
+        async def handler(ctx: HttpContext, **_params: typing.Any) -> BaseResponse:
+            denied = await self.guard(ctx)
+            if denied is not None:
+                return denied
+            bound = self.resource(slug)
+            if not await bound.resource.allows(ctx, "view"):
+                return await self.render(ctx, "Denied", {"reason": "view"})
+            if not bound.list.export:
+                return responses.not_found()
+
+            shape = str(ctx.query_params.get("format") or "csv").lower()
+            if shape not in ("csv", "json"):
+                shape = "csv"
+
+            query = props.Query(ctx, bound.list)
+            rows = await props.apply(ctx, bound, _all(bound), query)
+            found = await rows.limit(EXPORT_LIMIT)
+
+            columns = await props.visible(ctx, bound.list.columns)
+            stamp = _now().strftime("%Y-%m-%d")
+            name = f"{bound.resource.slug}-{stamp}.{shape}"
+
+            if shape == "json":
+                body = jsonlib.dumps(
+                    [
+                        {column.heading: props.cell(row, column) for column in columns}
+                        for row in found
+                    ],
+                    indent=2,
+                    default=str,
+                )
+                return responses.raw(
+                    body.encode(),
+                    content_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'},
+                )
+
+            return responses.raw(
+                _csv(columns, found).encode("utf-8-sig"),
+                content_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{name}"'},
+            )
+
+        return handler
+
     # --------------------------------------------------------------- pickers
 
     def options(self, slug: str) -> typing.Callable[..., typing.Any]:
@@ -801,6 +870,41 @@ def _option_label(row: typing.Any, display: str | None) -> str:
 def _all(bound: Bound) -> typing.Any:
     """Every row of a bound resource's model, before anything narrows it."""
     return typing.cast(typing.Any, bound.model).all()
+
+
+def _csv(
+    columns: typing.Sequence[typing.Any], rows: typing.Iterable[typing.Any]
+) -> str:
+    """The rows as CSV, with the columns' own headings.
+
+    A leading apostrophe is added to anything starting with ``=``, ``+``, ``-``
+    or ``@``: a spreadsheet treats those as formulas, and an admin export is
+    exactly how a cell someone typed becomes code someone else runs.
+    """
+    import csv
+    import io
+
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow([column.heading for column in columns])
+    for row in rows:
+        writer.writerow([_csv_cell(props.cell(row, column)) for column in columns])
+    return out.getvalue()
+
+
+def _csv_cell(value: typing.Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        value = value.get("label", value.get("id", ""))
+    text = str(value)
+    return f"'{text}" if text[:1] in ("=", "+", "-", "@") else text
+
+
+def _now() -> typing.Any:
+    import datetime as dt
+
+    return dt.datetime.now()
 
 
 async def _payload(ctx: HttpContext) -> dict[str, typing.Any]:

@@ -25,19 +25,21 @@ export default function Form({ page }: { page: FormPage }) {
   return (
     <Shell title={page.mode === 'add' ? `New ${page.resource.label}` : `Edit ${page.label}`}>
       <form onSubmit={submit} className="mx-auto w-full" style={{ maxWidth: WIDTHS[page.width] }}>
-        <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <nav className="mb-0.5 text-[11.5px] text-dim">
-              <Link href={page.resource.href} className="hover:text-ink hover:underline">
+            <nav className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-faint">
+              <Link href={page.resource.href} className="transition-colors hover:text-accent">
                 {page.resource.plural}
               </Link>
+              <span aria-hidden="true">/</span>
+              <span className="text-dim">{page.mode === 'add' ? 'New' : 'Edit'}</span>
             </nav>
-            <h2 className="truncate text-[16px] font-semibold tracking-tight">
+            <h2 className="wd-title truncate">
               {page.mode === 'add' ? `New ${page.resource.label.toLowerCase()}` : page.label}
             </h2>
-            {page.description && <p className="mt-0.5 text-[12.5px] text-dim">{page.description}</p>}
+            {page.description && <p className="mt-1.5 text-[13px] text-dim">{page.description}</p>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {page.can.delete && (
               <Button style="ghost" icon="trash" onClick={() => setConfirming(true)}>
                 Delete
@@ -55,7 +57,7 @@ export default function Form({ page }: { page: FormPage }) {
         </header>
 
         {whole && (
-          <div className="mb-3 rounded-[var(--radius-wd)] bg-red-500/10 px-3 py-2 ring-1 ring-inset ring-red-500/25">
+          <div className="mb-5 rounded-[var(--radius-wd)] bg-red-500/10 px-5 py-4 ring-1 ring-inset ring-red-500/25">
             <Error>{whole}</Error>
           </div>
         )}

@@ -512,28 +512,42 @@ async def _field_panel(
 async def _rows_panel(
     admin: Admin, bound: Bound, panel: Panel, row: typing.Any
 ) -> dict[str, typing.Any]:
-    """The child rows an inline or related panel shows, and where to see the rest.
+    """The child rows an inline or related panel shows, as a real table.
 
-    Capped at the declared limit with a link to the full list, because a
-    customer with nine hundred orders should not render nine hundred rows on
+    Not a list of labels. When the child model is registered, its own list
+    columns are reused — so "Comments" on a post looks like the Comments screen
+    looks, formats money the same way, and needed no second declaration.
+
+    Capped at the declared limit with a link to the full filtered list, because
+    a customer with nine hundred orders should not render nine hundred rows on
     their profile.
     """
     model = panel.target
     via = panel.option("via") or _back_reference(bound, model)
     if via is None:
-        return {"rows": []}
+        return {"rows": [], "columns": []}
 
     key = getattr(row, bound.schema.pk, None)
     limit = int(panel.option("limit", 10) or 10)
+    child = admin.resource_for(model)
+    columns = _panel_columns(panel, child, model)
+
     rows = typing.cast(typing.Any, model).filter(**{via: key})
-    sort = panel.option("sort")
+    joins = tuple(path for path in (column.relation_path for column in columns) if path)
+    if joins:
+        rows = rows.select_related(*dict.fromkeys(joins))
+    sort = panel.option("sort") or (child.sort if child is not None else None)
     if sort is not None:
         rows = rows.order_by(*sort.as_terms())
-    found = await rows.limit(limit)
 
-    child = admin.resource_for(model)
+    found = await rows.limit(limit + 1)
+    more = len(found) > limit
+    found = found[:limit]
+
     base = child.route(admin.prefix) if child is not None else None
+    total = await typing.cast(typing.Any, model).filter(**{via: key}).count()
     return {
+        "columns": [column_props(column) for column in columns],
         "rows": [
             {
                 "id": jsonable(getattr(item, "pk", None)),
@@ -541,12 +555,62 @@ async def _rows_panel(
                 "href": f"{base}/{jsonable(getattr(item, 'pk', None))}"
                 if base
                 else None,
+                "cells": {column.key: cell(item, column) for column in columns},
             }
             for item in found
         ],
-        "href": f"{base}?{via}={jsonable(key)}" if base else None,
-        "total": len(found),
+        "href": _panel_link(base, child, via, key),
+        "total": total,
+        "more": more,
     }
+
+
+def _panel_link(
+    base: str | None, child: typing.Any, via: str, key: typing.Any
+) -> str | None:
+    """Where "View all" goes.
+
+    Pre-filtered only when the child's list actually has a filter keyed on the
+    relation — otherwise the query string does nothing and the link quietly
+    shows every row, which reads as a bug in the filter rather than a link that
+    was never going to filter.
+    """
+    if base is None:
+        return None
+    keys = set(child.list.filter_map) if child is not None and child.list else set()
+    for candidate in (via, f"{via}_id", via.removesuffix("_id")):
+        if candidate in keys:
+            return f"{base}?{candidate}={jsonable(key)}"
+    return base
+
+
+def _panel_columns(
+    panel: Panel, child: typing.Any, model: typing.Any
+) -> tuple[Column, ...]:
+    """What a child table shows: what the panel said, else the child's own list.
+
+    Falling back to the registered resource is the point — a related panel
+    inherits the formatting somebody already wrote for that model rather than
+    restating it, and stays in step when they change it.
+    """
+    from warder.columns import Column as ColumnValue
+
+    declared = panel.option("columns") or ()
+    if declared:
+        return tuple(
+            entry if isinstance(entry, ColumnValue) else ColumnValue(entry)
+            for entry in declared
+        )
+    if child is not None and child.list is not None:
+        # Two or three columns; a panel is a window, not the screen itself.
+        return tuple(column for column in child.list.columns if not column.hidden)[:3]
+    schema = Schema.of(model)
+    names = [
+        field.name
+        for field in schema.fields.values()
+        if field.editable and field.kind in ("text", "slug", "enum", "integer")
+    ][:2]
+    return tuple(ColumnValue(name) for name in names) or (ColumnValue(schema.pk),)
 
 
 def _back_reference(bound: Bound, model: typing.Any) -> str | None:

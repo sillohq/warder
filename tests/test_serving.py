@@ -612,3 +612,170 @@ async def test_a_page_handler_may_return_a_query_result(posts):
     admin.add(Page("/count", "Count", lambda ctx: Post.all().count()))
     props = page_of(await _get(client(admin), "/admin/count", headers=INERTIA))["props"]
     assert props["page"] == 4
+
+
+# ------------------------------------------------------------------- export
+
+
+def exportable(**list_options) -> Admin:
+    return site(
+        Resource(
+            Post,
+            list=List(
+                Column("title"),
+                Column.money("fee") if False else Column("words"),
+                filters=[Filter.choice("status", ["draft", "live"])],
+                **list_options,
+            ),
+        )
+    )
+
+
+async def test_csv_carries_the_columns_headings(posts):
+    response = await _get(client(exportable()), "/admin/post/export?format=csv")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.text.lstrip("﻿").splitlines()[0] == "Title,Words"
+
+
+async def test_the_download_is_named_after_the_resource(posts):
+    response = await _get(client(exportable()), "/admin/post/export?format=csv")
+    assert 'filename="post-' in response.headers["content-disposition"]
+
+
+async def test_export_takes_the_filtered_set_not_the_page(posts):
+    # "Export" means everything I am looking at. Making somebody select forty
+    # thousand rows first is a way of not having the feature.
+    response = await _get(
+        client(exportable(per_page=1)), "/admin/post/export?format=csv"
+    )
+    assert len(response.text.strip().splitlines()) == 5  # header + 4 rows
+
+
+async def test_export_honours_a_filter(posts):
+    first = await Post.first()
+    first.status = "live"
+    await first.save()
+    response = await _get(
+        client(exportable()), "/admin/post/export?format=csv&status=live"
+    )
+    assert len(response.text.strip().splitlines()) == 2
+
+
+async def test_json_export_is_a_list_of_objects(posts):
+    import json
+
+    response = await _get(client(exportable()), "/admin/post/export?format=json")
+    rows = json.loads(response.text)
+    assert len(rows) == 4
+    assert set(rows[0]) == {"Title", "Words"}
+
+
+async def test_an_unknown_format_falls_back_to_csv(posts):
+    response = await _get(client(exportable()), "/admin/post/export?format=xlsx")
+    assert response.headers["content-type"].startswith("text/csv")
+
+
+async def test_a_cell_that_looks_like_a_formula_is_defused(posts):
+    # A spreadsheet runs anything starting with = + - or @, so an admin export
+    # is how a cell somebody typed becomes code somebody else runs.
+    first = await Post.first()
+    first.title = "=cmd|'/c calc'!A1"
+    await first.save()
+    response = await _get(client(exportable()), "/admin/post/export?format=csv")
+    assert "\"'=cmd" in response.text or "'=cmd" in response.text
+    assert not any(line.startswith("=") for line in response.text.splitlines())
+
+
+async def test_export_needs_permission_to_view(posts):
+    admin = site(Resource(Post, access=Access(view=False), list=List(Column("title"))))
+    response = await _get(client(admin), "/admin/post/export?format=csv")
+    assert page_of(response)["component"] == "Denied"
+
+
+async def test_export_can_be_switched_off(posts):
+    admin = site(Resource(Post, list=List(Column("title"), export=False)))
+    assert (await _get(client(admin), "/admin/post/export")).status_code == 404
+
+
+async def test_export_is_scoped_like_everything_else(posts):
+    admin = site(
+        Resource(
+            Post,
+            list=List(Column("title")),
+            scope=Scope.query(lambda ctx, rows: rows.filter(words__gte=2)),
+        )
+    )
+    response = await _get(client(admin), "/admin/post/export?format=csv")
+    assert len(response.text.strip().splitlines()) == 3
+
+
+# ----------------------------------------------------------- detail panels
+
+
+async def test_a_related_panel_reuses_the_child_resources_columns(posts):
+    # "Comments" on a post should look the way the Comments screen looks, and
+    # nobody should have declared it twice.
+    from warder import Detail, Panel
+
+    admin = site(
+        Resource(Author, detail=Detail(Panel.related("Posts", Post))),
+        Resource(Post, list=List(Column("title"), Column.badge("status"))),
+    )
+    author = await Author.first()
+    props = page_of(
+        await _get(client(admin), f"/admin/author/{author.pk}", headers=INERTIA)
+    )["props"]
+    panel = next(p for p in props["panels"] if p["kind"] == "related")
+    assert [c["key"] for c in panel["options"]["columns"]] == ["title", "status"]
+    assert panel["options"]["rows"][0]["cells"]["title"]
+
+
+async def test_a_related_panel_counts_what_it_did_not_show(posts):
+    from warder import Detail, Panel
+
+    admin = site(
+        Resource(Author, detail=Detail(Panel.related("Posts", Post, limit=2))),
+        Resource(Post),
+    )
+    author = await Author.first()
+    props = page_of(
+        await _get(client(admin), f"/admin/author/{author.pk}", headers=INERTIA)
+    )["props"]
+    panel = next(p for p in props["panels"] if p["kind"] == "related")
+    assert len(panel["options"]["rows"]) == 2
+    assert panel["options"]["total"] == 4
+    assert panel["options"]["more"] is True
+
+
+async def test_a_related_panel_links_to_the_filtered_list(posts):
+    from warder import Detail, Panel
+
+    admin = site(
+        Resource(Author, detail=Detail(Panel.related("Posts", Post))),
+        Resource(Post, list=List(Column("title"), filters=[Filter.relation("author")])),
+    )
+    author = await Author.first()
+    props = page_of(
+        await _get(client(admin), f"/admin/author/{author.pk}", headers=INERTIA)
+    )["props"]
+    panel = next(p for p in props["panels"] if p["kind"] == "related")
+    assert panel["options"]["href"] == f"/admin/post?author={author.pk}"
+
+
+async def test_a_related_panel_does_not_pretend_to_filter(posts):
+    # Without a matching filter on the child list, a query string would do
+    # nothing and the link would quietly show every row — which reads as a
+    # broken filter rather than a link that was never going to filter.
+    from warder import Detail, Panel
+
+    admin = site(
+        Resource(Author, detail=Detail(Panel.related("Posts", Post))),
+        Resource(Post, list=List(Column("title"))),
+    )
+    author = await Author.first()
+    props = page_of(
+        await _get(client(admin), f"/admin/author/{author.pk}", headers=INERTIA)
+    )["props"]
+    panel = next(p for p in props["panels"] if p["kind"] == "related")
+    assert panel["options"]["href"] == "/admin/post"

@@ -2,103 +2,133 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
 import type { Shell as ShellProps } from '../types'
 import { cn } from '../lib/cn'
+import { applyMode, nextMode, readMode, resolved, type Mode } from '../lib/theme'
 import { Icon } from './Icon'
-import { Menu, MenuItem } from './ui'
+import { IconButton, Menu, MenuItem } from './ui'
 
 /**
- * The frame every screen sits in: navigation, the command palette, the user
- * menu, and flash messages.
+ * The frame every screen sits in: navigation, search, the user menu, flash
+ * messages, and the command palette.
  *
- * The palette is the primary navigation, not a bonus. An admin with forty
- * resources has a sidebar nobody reads to the bottom of, and the people who use
- * it all day reach for ⌘K by the second week.
+ * The palette is primary navigation, not a bonus. An admin with forty
+ * resources has a sidebar nobody reads to the bottom of, and the people who
+ * live in it reach for ⌘K by the second week.
  */
 export function Shell({ children, title }: { children: ReactNode; title?: string }) {
   const page = usePage().props as unknown as ShellProps
   const [open, setOpen] = useState(false)
   const [palette, setPalette] = useState(false)
+  const [mode, setMode] = useState<Mode>('system')
+
+  useEffect(() => setMode(readMode()), [])
 
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((event.target as HTMLElement)?.tagName ?? '')
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         setPalette(true)
+      }
+      if (event.key === '/' && !typing && !event.metaKey && !event.ctrlKey) {
+        const box = document.querySelector<HTMLInputElement>('[data-wd-search]')
+        if (box) {
+          event.preventDefault()
+          box.focus()
+        }
       }
     }
     document.addEventListener('keydown', keys)
     return () => document.removeEventListener('keydown', keys)
   }, [])
 
+  const toggle = () => {
+    const next = nextMode(resolved(mode))
+    setMode(next)
+    applyMode(next)
+  }
+
   return (
     <div className="min-h-screen bg-bg text-ink">
-      <a href="#wd-main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:ring-1 focus:ring-line">
+      <a
+        href="#wd-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[var(--radius-wd-sm)] focus:bg-surface focus:px-4 focus:py-2.5 focus:ring-1 focus:ring-edge"
+      >
         Skip to content
       </a>
 
-      <header className="sticky top-0 z-30 flex h-11 items-center gap-2 border-b border-line bg-surface px-3">
-        <button type="button" onClick={() => setOpen((v) => !v)} className="-ml-1 grid h-7 w-7 place-items-center rounded text-dim hover:bg-raised md:hidden" aria-label="Menu">
-          <Icon name="more" />
-        </button>
-        <Link href={page.site.prefix} className="flex items-center gap-2 truncate font-semibold tracking-tight">
-          {page.site.logo ? <img src={page.site.logo} alt="" className="h-4 w-auto" /> : <span className="grid h-5 w-5 place-items-center rounded bg-accent text-[10px] font-bold text-white">{page.site.brand.slice(0, 1)}</span>}
-          <span className="truncate text-[13px]">{page.site.brand}</span>
-        </Link>
+      <Sidebar site={page.site} nav={page.nav} open={open} onClose={() => setOpen(false)} />
 
-        <div className="flex-1" />
+      <div className="md:pl-[var(--spacing-sidebar)]">
+        <header className="sticky top-0 z-30 flex h-[var(--spacing-header)] items-center gap-3 border-b border-line bg-bg/95 px-5 backdrop-blur-sm md:px-page">
+          <IconButton icon="more" label="Menu" onClick={() => setOpen((v) => !v)} className="-ml-2 md:hidden" />
 
-        <button
-          type="button"
-          onClick={() => setPalette(true)}
-          className="hidden h-7 items-center gap-2 rounded-[var(--radius-wd)] px-2 text-[12px] text-dim ring-1 ring-line hover:bg-raised sm:inline-flex"
-        >
-          <Icon name="search" className="h-3.5 w-3.5" />
-          Search
-          <kbd className="ml-2 rounded bg-raised px-1 py-0.5 font-mono text-[10px] text-dim">⌘K</kbd>
-        </button>
-
-        {page.user && (
-          <Menu
-            trigger={
-              <button type="button" className="flex h-7 items-center gap-1.5 rounded-[var(--radius-wd)] px-1.5 text-[12.5px] hover:bg-raised">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-raised text-[10px] font-medium uppercase text-dim">
-                  {page.user.label.slice(0, 1)}
-                </span>
-                <span className="hidden max-w-32 truncate sm:inline">{page.user.label}</span>
-                <Icon name="chevronDown" className="h-3 w-3 text-dim" />
-              </button>
-            }
+          <button
+            type="button"
+            onClick={() => setPalette(true)}
+            className="hidden h-9 items-center gap-2.5 rounded-[var(--radius-wd-sm)] px-3 text-[13px] text-dim ring-1 ring-line transition-colors hover:bg-raised hover:text-ink sm:inline-flex"
           >
-            {(close) => (
-              <>
-                <div className="border-b border-line px-3 pb-2 pt-1">
-                  <p className="truncate text-[12.5px] font-medium">{page.user!.label}</p>
-                  {page.user!.email && <p className="truncate text-[11.5px] text-dim">{page.user!.email}</p>}
-                </div>
-                <MenuItem
-                  icon="logout"
-                  onClick={() => {
-                    close()
-                    router.post(`${page.site.prefix}/logout`)
-                  }}
-                >
-                  Sign out
-                </MenuItem>
-              </>
-            )}
-          </Menu>
-        )}
-      </header>
+            <Icon name="search" className="h-4 w-4" />
+            Jump to…
+            <kbd className="ml-3 rounded bg-raised px-1.5 py-0.5 font-mono text-[10.5px] text-faint">⌘K</kbd>
+          </button>
 
-      <div className="flex">
-        <Sidebar nav={page.nav} open={open} onClose={() => setOpen(false)} />
-        <main id="wd-main" className="min-w-0 flex-1">
+          <div className="flex-1" />
+
+          <IconButton
+            icon={resolved(mode) === 'dark' ? 'sun' : 'moon'}
+            label={resolved(mode) === 'dark' ? 'Switch to light' : 'Switch to dark'}
+            onClick={toggle}
+          />
+
+          {page.user && (
+            <Menu
+              trigger={
+                <button
+                  type="button"
+                  className="flex h-9 items-center gap-2 rounded-[var(--radius-wd-sm)] pl-1 pr-2 text-[13px] font-medium transition-colors hover:bg-raised"
+                >
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-accent text-[11px] font-bold uppercase text-on-accent">
+                    {page.user.label.slice(0, 1)}
+                  </span>
+                  <span className="hidden max-w-36 truncate sm:inline">{page.user.label}</span>
+                  <Icon name="chevronDown" className="h-3.5 w-3.5 text-faint" />
+                </button>
+              }
+            >
+              {(close) => (
+                <>
+                  <div className="border-b border-line px-4 pb-3 pt-2">
+                    <p className="truncate text-[13.5px] font-semibold text-ink">{page.user!.label}</p>
+                    {page.user!.email && <p className="truncate text-[12px] text-dim">{page.user!.email}</p>}
+                    {page.user!.superuser && (
+                      <span className="mt-2 inline-flex rounded-full bg-accent/12 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-accent">
+                        Superuser
+                      </span>
+                    )}
+                  </div>
+                  <MenuItem
+                    icon="logout"
+                    onClick={() => {
+                      close()
+                      router.post(`${page.site.prefix}/logout`)
+                    }}
+                  >
+                    Sign out
+                  </MenuItem>
+                </>
+              )}
+            </Menu>
+          )}
+        </header>
+
+        <main id="wd-main">
           <Flash messages={page.flash} />
-          <div className={cn('mx-auto w-full px-4 py-4 md:px-6', page.site.wide ? '' : 'max-w-[1400px]')}>
+          <div className={cn('mx-auto w-full px-5 py-page md:px-page', page.site.wide ? '' : 'max-w-[1560px]')}>
             {title && <h1 className="sr-only">{title}</h1>}
             {children}
           </div>
           {page.site.footer && (
-            <footer className="border-t border-line px-4 py-3 text-[11.5px] text-dim md:px-6">{page.site.footer}</footer>
+            <footer className="border-t border-line px-5 py-5 text-[12.5px] text-faint md:px-page">{page.site.footer}</footer>
           )}
         </main>
       </div>
@@ -108,67 +138,108 @@ export function Shell({ children, title }: { children: ReactNode; title?: string
   )
 }
 
-function Sidebar({ nav, open, onClose }: { nav: ShellProps['nav']; open: boolean; onClose: () => void }) {
+function Sidebar({
+  site,
+  nav,
+  open,
+  onClose,
+}: {
+  site: ShellProps['site']
+  nav: ShellProps['nav']
+  open: boolean
+  onClose: () => void
+}) {
   const here = typeof window !== 'undefined' ? window.location.pathname : ''
   return (
     <>
-      {open && <div className="fixed inset-0 z-20 bg-black/30 md:hidden" onClick={onClose} />}
+      {open && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={onClose} />}
       <nav
         className={cn(
-          'z-20 w-56 shrink-0 border-r border-line bg-surface',
-          'fixed inset-y-0 left-0 top-11 overflow-y-auto transition-transform md:sticky md:top-11 md:h-[calc(100vh-2.75rem)] md:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex w-[var(--spacing-sidebar)] flex-col border-r border-line bg-bg',
+          'transition-transform md:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="p-2">
+        <Link
+          href={site.prefix}
+          className="flex h-[var(--spacing-header)] shrink-0 items-center gap-2.5 border-b border-line px-5"
+        >
+          {site.logo ? (
+            <img src={site.logo} alt="" className="h-7 w-7 rounded-[var(--radius-wd-sm)] object-contain" />
+          ) : (
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[var(--radius-wd-sm)] bg-accent text-[13px] font-extrabold text-on-accent">
+              {site.brand.slice(0, 1)}
+            </span>
+          )}
+          <span className="truncate text-[15px] font-bold tracking-tight">{site.brand}</span>
+        </Link>
+
+        <div className="wd-scroll-y flex-1 overflow-y-auto px-3 py-4">
           {nav.map((group) => (
-            <div key={group.label || '_'} className="mb-3">
-              {group.label && (
-                <p className="px-2 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wider text-dim">{group.label}</p>
-              )}
-              {group.items.map((item) => {
-                const active = here === item.href || here.startsWith(`${item.href}/`)
-                return (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      'flex items-center gap-2 rounded-[var(--radius-wd)] px-2 py-1.5 text-[12.5px]',
-                      active ? 'bg-raised font-medium text-ink' : 'text-dim hover:bg-raised hover:text-ink',
-                    )}
-                  >
-                    <Icon name={item.icon ?? (item.kind === 'page' ? 'file' : 'database')} className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                )
-              })}
+            <div key={group.label || '_'} className="mb-5 last:mb-0">
+              {group.label && <p className="wd-eyebrow px-3 pb-2">{group.label}</p>}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const active = here === item.href || here.startsWith(`${item.href}/`)
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        'group flex items-center gap-2.5 rounded-[var(--radius-wd-sm)] px-3 py-2.5 text-[13.5px] font-medium transition-colors',
+                        active
+                          ? 'bg-accent/10 font-semibold text-accent'
+                          : 'text-dim hover:bg-raised hover:text-ink',
+                      )}
+                    >
+                      <Icon
+                        name={item.icon ?? (item.kind === 'page' ? 'file' : 'database')}
+                        className={cn('h-4 w-4 shrink-0', active ? 'opacity-100' : 'opacity-55 group-hover:opacity-100')}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </div>
             </div>
           ))}
+        </div>
+
+        <div className="shrink-0 border-t border-line px-5 py-4 text-[11.5px] text-faint">
+          Warder
         </div>
       </nav>
     </>
   )
 }
 
+const TONES: Record<string, string> = {
+  success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  danger: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+  neutral: 'bg-raised text-ink border-line',
+}
+
 function Flash({ messages }: { messages: ShellProps['flash'] }) {
-  const [dismissed, setDismissed] = useState<number[]>([])
+  const [gone, setGone] = useState<number[]>([])
   if (!messages?.length) return null
-  const tones: Record<string, string> = {
-    success: 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/25',
-    warning: 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/25',
-    danger: 'bg-red-500/10 text-red-800 dark:text-red-300 border-red-500/25',
-    neutral: 'bg-raised text-ink border-line',
-  }
   return (
-    <div className="space-y-px">
+    <div>
       {messages.map((flash, i) =>
-        dismissed.includes(i) ? null : (
-          <div key={i} role="status" className={cn('flex items-center gap-2 border-b px-4 py-2 text-[12.5px] md:px-6', tones[flash.tone] ?? tones.neutral)}>
-            <Icon name={flash.tone === 'danger' ? 'alert' : flash.tone === 'warning' ? 'alert' : 'check'} className="h-3.5 w-3.5 shrink-0" />
+        gone.includes(i) ? null : (
+          <div
+            key={i}
+            role="status"
+            className={cn(
+              'wd-in flex items-center gap-3 border-b px-5 py-3.5 text-[13.5px] font-medium md:px-page',
+              TONES[flash.tone] ?? TONES.neutral,
+            )}
+          >
+            <Icon name={flash.tone === 'success' ? 'check' : 'alert'} className="h-4 w-4 shrink-0" />
             <span className="flex-1">{flash.message}</span>
-            <button type="button" onClick={() => setDismissed((d) => [...d, i])} aria-label="Dismiss" className="text-current opacity-60 hover:opacity-100">
-              <Icon name="x" className="h-3.5 w-3.5" />
+            <button type="button" onClick={() => setGone((d) => [...d, i])} aria-label="Dismiss" className="opacity-60 hover:opacity-100">
+              <Icon name="x" className="h-4 w-4" />
             </button>
           </div>
         ),
@@ -185,7 +256,9 @@ function Palette({ nav, onClose }: { nav: ShellProps['nav']; onClose: () => void
     const flat = nav.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label })))
     const needle = term.trim().toLowerCase()
     if (!needle) return flat
-    return flat.filter((item) => item.label.toLowerCase().includes(needle) || item.group.toLowerCase().includes(needle))
+    return flat.filter(
+      (item) => item.label.toLowerCase().includes(needle) || item.group.toLowerCase().includes(needle),
+    )
   }, [nav, term])
 
   useEffect(() => setCursor(0), [term])
@@ -211,26 +284,29 @@ function Palette({ nav, onClose }: { nav: ShellProps['nav']; onClose: () => void
   }, [items, cursor, onClose])
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/35 p-4 pt-[12vh]" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/50 p-4 pt-[12vh] backdrop-blur-[2px]" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
         onMouseDown={(event) => event.stopPropagation()}
-        className="mx-auto w-full max-w-lg overflow-hidden rounded-[var(--radius-wd)] bg-surface ring-1 ring-line shadow-[0_16px_48px_-16px_rgb(0_0_0/0.5)]"
+        className="wd-in mx-auto w-full max-w-xl overflow-hidden rounded-[var(--radius-wd)] bg-surface ring-1 ring-edge shadow-[0_24px_64px_-16px_rgb(0_0_0/0.6)]"
       >
-        <div className="flex items-center gap-2 border-b border-line px-3">
-          <Icon name="search" className="h-4 w-4 shrink-0 text-dim" />
+        <div className="flex items-center gap-3 border-b border-line px-5">
+          <Icon name="search" className="h-4.5 w-4.5 shrink-0 text-faint" />
           <input
             autoFocus
             value={term}
             onChange={(event) => setTerm(event.target.value)}
-            placeholder="Go to…"
-            className="h-11 w-full bg-transparent text-[13px] outline-none placeholder:text-dim"
+            placeholder="Jump to a resource or a page…"
+            className="h-14 w-full bg-transparent text-[15px] outline-none placeholder:text-faint"
           />
+          <kbd className="shrink-0 rounded bg-raised px-1.5 py-0.5 font-mono text-[10.5px] text-faint">esc</kbd>
         </div>
-        <div className="max-h-80 overflow-y-auto py-1">
-          {items.length === 0 && <p className="px-3 py-6 text-center text-[12.5px] text-dim">Nothing matches “{term}”.</p>}
+        <div className="wd-scroll-y max-h-[22rem] overflow-y-auto py-2">
+          {items.length === 0 && (
+            <p className="px-5 py-10 text-center text-[13.5px] text-dim">Nothing matches “{term}”.</p>
+          )}
           {items.map((item, i) => (
             <button
               key={item.key}
@@ -240,11 +316,14 @@ function Palette({ nav, onClose }: { nav: ShellProps['nav']; onClose: () => void
                 onClose()
                 router.visit(item.href)
               }}
-              className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-[12.5px]', i === cursor ? 'bg-raised' : '')}
+              className={cn(
+                'flex w-full items-center gap-3 px-5 py-3 text-left text-[13.5px] transition-colors',
+                i === cursor ? 'bg-raised text-ink' : 'text-dim',
+              )}
             >
-              <Icon name={item.icon ?? 'database'} className="h-3.5 w-3.5 shrink-0 text-dim" />
-              <span className="flex-1 truncate">{item.label}</span>
-              {item.group && <span className="text-[11px] text-dim">{item.group}</span>}
+              <Icon name={item.icon ?? 'database'} className="h-4 w-4 shrink-0 opacity-60" />
+              <span className="flex-1 truncate font-medium">{item.label}</span>
+              {item.group && <span className="shrink-0 text-[11.5px] text-faint">{item.group}</span>}
             </button>
           ))}
         </div>

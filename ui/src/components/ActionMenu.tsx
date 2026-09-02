@@ -62,6 +62,7 @@ export function ActionBar({
               Actions
             </Button>
           }
+          width="min-w-56"
         >
           {(close) =>
             overflow.map((action) => (
@@ -69,13 +70,14 @@ export function ActionBar({
                 key={action.key}
                 icon={action.icon}
                 danger={action.style === 'danger'}
+                disabled={!usable(action)}
+                hint={usable(action) ? undefined : 'select rows'}
                 onClick={() => {
                   close()
                   if (usable(action)) start(action)
                 }}
               >
                 {action.label}
-                {!usable(action) && <span className="ml-auto text-[10.5px] text-dim">select rows</span>}
               </MenuItem>
             ))
           }
@@ -125,7 +127,7 @@ function ActionDialog({
       }
     >
       {action.fields.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-5">
           {action.fields.map((field) => (
             <FieldInput
               key={field.name}
@@ -160,8 +162,12 @@ export function RowMenu({
     <>
       <Menu
         trigger={
-          <button type="button" aria-label="Row actions" className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-raised hover:text-ink">
-            <Icon name="more" className="h-3.5 w-3.5" />
+          <button
+            type="button"
+            aria-label="Row actions"
+            className="grid h-9 w-9 place-items-center rounded-[var(--radius-wd-sm)] text-faint transition-colors hover:bg-raised hover:text-ink"
+          >
+            <Icon name="more" className="h-4 w-4" />
           </button>
         }
       >

@@ -10,17 +10,19 @@ export default function Detail({ page }: { page: DetailPage }) {
 
   return (
     <Shell title={page.title}>
-      <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <nav className="mb-0.5 text-[11.5px] text-dim">
-            <Link href={page.resource.href} className="hover:text-ink hover:underline">
+          <nav className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-faint">
+            <Link href={page.resource.href} className="transition-colors hover:text-accent">
               {page.resource.plural}
             </Link>
+            <span aria-hidden="true">/</span>
+            <span className="wd-num text-dim">{String(page.id)}</span>
           </nav>
-          <h2 className="truncate text-[16px] font-semibold tracking-tight">{page.title}</h2>
-          {page.subtitle && <p className="mt-0.5 text-[12.5px] text-dim">{page.subtitle}</p>}
+          <h2 className="wd-title truncate">{page.title}</h2>
+          {page.subtitle && <p className="mt-1.5 text-[13px] text-dim">{page.subtitle}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {page.actions.length > 0 && (
             <Menu trigger={<Button icon="more">Actions</Button>}>
               {(close) =>
@@ -55,7 +57,7 @@ export default function Detail({ page }: { page: DetailPage }) {
         </div>
       </header>
 
-      <DetailView page={page} slots={page.slots} />
+      <DetailView page={page} />
 
       {confirming && (
         <Dialog
