@@ -3,6 +3,7 @@ import type { CardSpec, DashboardPage, Json } from '../types'
 import { Shell } from '../components/Shell'
 import { cn } from '../lib/cn'
 import { label, money, truncate } from '../lib/format'
+import { Chart, type Point } from '../components/Chart'
 import { Empty, Panel, Stat } from '../components/ui'
 import { Icon } from '../components/Icon'
 
@@ -76,29 +77,15 @@ function Card({ card }: { card: CardSpec }) {
     }
 
     case 'chart': {
-      const points = (Array.isArray(card.data) ? card.data : []) as { label: string; value: number }[]
-      const peak = Math.max(1, ...points.map((p) => Number(p.value) || 0))
+      const points = (Array.isArray(card.data) ? card.data : []) as unknown as Point[]
       return (
         <Panel title={card.title} description={card.description}>
-          {points.length === 0 ? (
-            <p className="py-10 text-center text-[13px] text-faint">No data yet.</p>
-          ) : (
-            <div className="flex h-44 items-end gap-2">
-              {points.map((point, i) => (
-                <div key={i} className="group flex flex-1 flex-col items-center justify-end gap-2">
-                  <span className="wd-num text-[11.5px] font-semibold text-dim opacity-0 transition-opacity group-hover:opacity-100">
-                    {Number(point.value).toLocaleString()}
-                  </span>
-                  <span
-                    className="w-full rounded-t-[4px] bg-accent/75 transition-colors group-hover:bg-accent"
-                    style={{ height: `${Math.max(2, (Number(point.value) / peak) * 100)}%` }}
-                    title={`${point.label}: ${point.value}`}
-                  />
-                  <span className="w-full truncate text-center text-[11px] text-faint">{point.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <Chart
+            points={points}
+            kind={String(card.options.chart ?? 'bar')}
+            currency={card.options.currency as string | undefined}
+            height={card.span >= 3 ? 240 : 200}
+          />
         </Panel>
       )
     }

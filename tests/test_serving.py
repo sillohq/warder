@@ -940,3 +940,33 @@ async def test_an_empty_set_clears_it(posts):
         json={"title": first.title, "tags": []},
     )
     assert await first.tags.all() == []
+
+
+# --------------------------------------------------------------------- charts
+
+
+async def test_a_chart_card_sends_its_kind(posts):
+    # The renderer reads `options.chart`; a card that only sends its data
+    # draws a bar chart whatever you asked for, which is how `kind="line"`
+    # silently meant "bar" for a while.
+    from warder import Card, Dashboard
+
+    admin = site(Resource(Post))
+    admin.add(
+        Dashboard(
+            Card.chart("Trend", lambda ctx: [{"label": "Mon", "value": 3}], kind="area")
+        )
+    )
+    props = page_of(await _get(client(admin), "/admin", headers=INERTIA))["props"]
+    card = props["cards"][0]
+    assert card["options"]["chart"] == "area"
+    assert card["data"] == [{"label": "Mon", "value": 3}]
+
+
+async def test_a_chart_card_defaults_to_a_line(posts):
+    from warder import Card, Dashboard
+
+    admin = site(Resource(Post))
+    admin.add(Dashboard(Card.chart("Trend", lambda ctx: [])))
+    props = page_of(await _get(client(admin), "/admin", headers=INERTIA))["props"]
+    assert props["cards"][0]["options"]["chart"] == "line"
