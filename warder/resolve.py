@@ -708,26 +708,27 @@ def _check_panel(panel: Panel, schema: Schema, model: str) -> list[DeclarationEr
             return [_missing(f"{label} via", via, far, panel.where)]
         return []
 
-    candidates = [
-        f.name
-        for f in far.fields.values()
-        if f.kind == "relation" and f.related is schema.model
-    ]
+    # A foreign key or a many-to-many: a class's subjects is a many-to-many
+    # and is exactly as much "the rows belonging to this one" as a post's
+    # comments are.
+    from warder.props import relations_to
+
+    candidates = relations_to(far, schema.model)
     if len(candidates) > 1:
         # Picking the first of `author` and `editor` would be wrong half the
         # time and silent both halves.
         return [
             DeclarationError(
-                f"{label} could reach {model} through {len(candidates)} foreign keys "
+                f"{label} could reach {model} through {len(candidates)} relations "
                 f"on {child.__name__}: {', '.join(sorted(candidates))}.",
                 hint="Pass via= to say which one.",
                 where=panel.where,
             )
         ]
-    if not candidates and any(f.kind == "relation" for f in far.fields.values()):
+    if not candidates and any(f.relational for f in far.fields.values()):
         return [
             DeclarationError(
-                f"{label} has no foreign key from {child.__name__} back to {model}.",
+                f"{label} has no relation from {child.__name__} back to {model}.",
                 where=panel.where,
             )
         ]

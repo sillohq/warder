@@ -725,20 +725,31 @@ def _panel_columns(
 
 
 def _back_reference(bound: Bound, model: typing.Any) -> str | None:
-    """The one foreign key on *model* pointing back, when there is exactly one.
+    """The one relation on *model* pointing back, when there is exactly one.
 
-    Two candidates is refused at mount by :func:`warder.resolve.check`, so by
-    the time a panel renders there is either one or none.
+    A foreign key or a many-to-many: a class's subjects is a many-to-many and
+    is exactly as much "the rows belonging to this one" as a post's comments
+    are. Two candidates is refused at mount by :func:`warder.resolve.check`, so
+    by the time a panel renders there is either one or none.
     """
     if not isinstance(model, type):
         return None
-    far = Schema.of(model)
-    candidates = [
+    return _one_relation_to(Schema.of(model), bound.model)
+
+
+def _one_relation_to(far: Schema, parent: type) -> str | None:
+    """The single relation on *far* pointing at *parent*, or ``None``."""
+    candidates = relations_to(far, parent)
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def relations_to(far: Schema, parent: type) -> list[str]:
+    """Every relation on *far* that points at *parent*, forward or many."""
+    return [
         field.name
         for field in far.fields.values()
-        if field.kind == "relation" and field.related is bound.model
+        if field.kind in ("relation", "m2m") and field.related is parent
     ]
-    return candidates[0] if len(candidates) == 1 else None
 
 
 # ------------------------------------------------------------ the small parts

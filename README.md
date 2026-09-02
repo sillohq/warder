@@ -259,6 +259,19 @@ Resource(
 )
 ```
 
+Inside a rule of your own, read the account with `current_user(ctx)` rather than
+`ctx.user`. The context *raises* when no authentication middleware is installed,
+and `getattr(ctx, "user", None)` does not help — the default only catches
+`AttributeError`, and what comes out is a `ValueError`:
+
+```python
+from warder import Scope, current_user
+
+async def my_students(ctx, rows):
+    staff = await Staff.filter(user_id=getattr(current_user(ctx), "id", None)).first()
+    return rows.filter(classroom__form_teacher_id=staff.id) if staff else rows.none()
+```
+
 `Access` decides whether a button is shown and whether a write is allowed;
 `Scope` decides what is in the queryset at all. Access without scope leaks the
 existence of rows through pagination counts and search results; scope without

@@ -115,3 +115,30 @@ def test_fields_extend_without_mutating():
 
 def test_a_widget_can_be_replaced_by_extension():
     assert Field("body").with_(widget=Widget.markdown()).widget.kind == "markdown"
+
+
+@pytest.mark.parametrize(
+    ("shorthand", "kind"),
+    [
+        ("email", "email"),
+        ("url", "url"),
+        ("phone", "phone"),
+        ("color", "color"),
+        ("range", "range"),
+        ("duration", "duration"),
+        ("time", "time"),
+    ],
+)
+def test_every_widget_kind_has_a_field_shorthand(shorthand, kind):
+    # A shorthand that exists for one kind and not another is a paper cut you
+    # hit at the call site, where the docs are not.
+    assert getattr(Field, shorthand)("x").widget.kind == kind
+
+
+def test_the_conventional_names_are_the_defaults():
+    assert Field.email().name == "email"
+    assert Field.phone().name == "phone"
+
+
+def test_a_phone_field_carries_its_region():
+    assert Field.phone("mobile", region="NG").widget.option("region") == "NG"

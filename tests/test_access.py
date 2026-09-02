@@ -384,3 +384,18 @@ async def test_a_gate_may_answer_with_an_awaitable(anyone):
             return yes().__await__()
 
     assert await Gate.custom(lambda ctx: Answer()).allows(anyone)
+
+
+def test_current_user_is_what_a_rule_should_use(nobody):
+    # ctx.user raises when there is no authentication middleware, and
+    # getattr(ctx, "user", None) does not help: the default only catches
+    # AttributeError, and what comes out is a ValueError.
+    assert current_user(nobody) is None
+    with pytest.raises(ValueError):
+        _ = nobody.user
+
+
+def test_current_user_is_exported():
+    import warder
+
+    assert warder.current_user is current_user

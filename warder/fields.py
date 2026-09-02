@@ -206,6 +206,53 @@ class Field(Declaration):
         return cls(name, widget=Widget.slug(source=source), **options)
 
     @classmethod
+    def email(cls, name: str = "email", **options: typing.Any) -> Field:
+        """An email box, with the keyboard and validation a browser gives one."""
+        return cls(name, widget=Widget.email(), **options)
+
+    @classmethod
+    def url(cls, name: str, **options: typing.Any) -> Field:
+        return cls(name, widget=Widget.url(), **options)
+
+    @classmethod
+    def phone(
+        cls, name: str = "phone", *, region: str | None = None, **options: typing.Any
+    ) -> Field:
+        """A telephone box. *region* is the country the number is read in."""
+        return cls(name, widget=Widget.phone(region=region), **options)
+
+    @classmethod
+    def color(cls, name: str, **options: typing.Any) -> Field:
+        return cls(
+            name, widget=Widget.color(palette=options.pop("palette", ())), **options
+        )
+
+    @classmethod
+    def range(cls, name: str, **options: typing.Any) -> Field:
+        """A slider. Right when the *shape* of the value matters more than it."""
+        return cls(
+            name,
+            widget=Widget.range(
+                min=options.pop("min", 0),
+                max=options.pop("max", 100),
+                step=options.pop("step", 1),
+            ),
+            **options,
+        )
+
+    @classmethod
+    def duration(cls, name: str, **options: typing.Any) -> Field:
+        return cls(
+            name, widget=Widget.duration(unit=options.pop("unit", "seconds")), **options
+        )
+
+    @classmethod
+    def time(cls, name: str, **options: typing.Any) -> Field:
+        return cls(
+            name, widget=Widget.time(seconds=options.pop("seconds", False)), **options
+        )
+
+    @classmethod
     def number(cls, name: str, **options: typing.Any) -> Field:
         return cls(
             name,

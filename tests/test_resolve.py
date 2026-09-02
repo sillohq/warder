@@ -330,6 +330,7 @@ def test_an_ambiguous_inline_panel_asks_for_via():
     problems = check(Resource(Author, detail=Detail(Panel.inline("C", Comment))))
     assert "Pass via= to say which one" in str(problems[0])
     assert "author, reviewer" in str(problems[0])
+    assert "2 relations" in str(problems[0])
 
 
 def test_naming_via_resolves_the_ambiguity():
@@ -348,8 +349,18 @@ def test_an_unambiguous_child_needs_no_via():
 
 
 def test_a_child_with_no_way_back_is_caught():
-    problems = check(Resource(Tag, detail=Detail(Panel.related("C", Comment))))
-    assert "no foreign key from Comment back to Tag" in str(problems[0])
+    from orm import Required
+
+    problems = check(Resource(Required, detail=Detail(Panel.related("C", Comment))))
+    assert "no relation from Comment back to Required" in str(problems[0])
+
+
+def test_a_related_panel_may_follow_a_many_to_many():
+    # A class's subjects is a many-to-many, and is exactly as much "the rows
+    # belonging to this one" as a post's comments are.
+    from orm import Wide
+
+    assert check(Resource(Tag, detail=Detail(Panel.related("Wides", Wide)))) == []
 
 
 def test_a_panel_over_something_that_is_not_a_model_is_caught():

@@ -47,7 +47,7 @@ cell in production.
 
 from __future__ import annotations
 
-from warder.access import Access, Gate, Role, Scope
+from warder.access import Access, Gate, Role, Scope, current_user
 from warder.actions import Action
 from warder.auth import MFA, Audit, Auth, Impersonation, Login, Session
 from warder.base import Declaration
@@ -126,6 +126,7 @@ __all__ = [
     "Widget",
     "__version__",
     "crud",
+    "current_user",
     "download",
     "go",
     "modal",

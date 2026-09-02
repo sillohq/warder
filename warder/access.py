@@ -36,7 +36,14 @@ from warder.naming import permission
 if typing.TYPE_CHECKING:
     from warder.sorting import Sort  # noqa: F401
 
-__all__ = ["ACTIONS", "Access", "Gate", "Role", "Scope"]
+__all__ = [
+    "ACTIONS",
+    "Access",
+    "Gate",
+    "Role",
+    "Scope",
+    "current_user",
+]
 
 #: The four things you can do to a row, in the order they escalate.
 ACTIONS = ("view", "add", "change", "delete")
@@ -87,6 +94,13 @@ async def holds_permission(ctx: typing.Any, name: str) -> bool:
 
 def current_user(ctx: typing.Any) -> typing.Any:
     """The signed-in user, or ``None``.
+
+    **Use this rather than ``ctx.user`` in a scope, gate or access rule.**
+    ``ctx.user`` *raises* when no authentication middleware is installed, and
+    ``getattr(ctx, "user", None)`` does not help — the default only catches
+    ``AttributeError``, and what comes out is a ``ValueError``. A rule asked
+    "may this person view" before anybody has signed in is an ordinary state,
+    not an error.
 
     Warder's own backend resolves the account once per request and leaves it
     here, so a page asking forty access questions makes one query. Failing
