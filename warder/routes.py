@@ -28,7 +28,7 @@ from sillo.core.routing import Group, Route
 from sillo.static import StaticFiles
 
 from warder import inertia, props
-from warder._async import resolved
+from warder._async import awaited
 from warder.assets import Assets
 from warder.errors import ActionFailed, Denied
 from warder.results import Outcome
@@ -246,7 +246,7 @@ class _Site:
                 return denied
             if declared.gate is not None and not await declared.gate.allows(ctx):
                 return await self.render(ctx, "Denied", {"reason": "page"})
-            result = await resolved(declared.render(ctx))
+            result = await awaited(declared.render(ctx))
             if isinstance(result, Outcome):
                 return self.outcome(ctx, result, fallback=self.admin.prefix)
             return await self.render(
@@ -637,7 +637,7 @@ class _Site:
             setattr(target, field.name, value)
 
         if form.on_save is not None:
-            await resolved(form.on_save(ctx, target, values))
+            await awaited(form.on_save(ctx, target, values))
 
         try:
             await target.save()
@@ -757,7 +757,7 @@ async def _form_errors(
     """Whole-form checks, which run only once every field passed its own."""
     found: dict[str, typing.Any] = {}
     for check in form.validate:
-        result = await resolved(check(ctx, values, row))
+        result = await awaited(check(ctx, values, row))
         if isinstance(result, dict):
             found.update(result)
         elif result:
@@ -779,7 +779,7 @@ async def _run(
     """
     if action.builtin:
         return await _builtin(action, rows)
-    return await resolved(
+    return await awaited(
         action.run(ctx, rows, dict(values))
         if action.collects
         else action.run(ctx, rows)
@@ -837,7 +837,7 @@ def _download(result: Outcome) -> BaseResponse:
 async def _card_props(ctx: HttpContext, card: typing.Any) -> dict[str, typing.Any]:
     data: typing.Any = None
     if card.load is not None:
-        data = await resolved(card.load(ctx))
+        data = await awaited(card.load(ctx))
     return {
         "key": card.key,
         "kind": card.kind,

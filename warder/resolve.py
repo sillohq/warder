@@ -37,7 +37,15 @@ from warder.widgets import Widget
 if typing.TYPE_CHECKING:
     from warder.resource import Resource
 
-__all__ = ["Bound", "bind", "check", "derive_detail", "derive_form", "derive_list"]
+__all__ = [
+    "Bound",
+    "bind",
+    "check",
+    "derive_detail",
+    "derive_form",
+    "derive_list",
+    "dress",
+]
 
 #: Names a related row is usually known by, best first. Consulted before
 #: falling back to "the first text column", because a `Customer` picker
@@ -114,7 +122,11 @@ def bind(resource: Resource) -> Bound:
     if resource.search and (not declared or screen.search is None):
         others = tuple(f for f in screen.filters if f.kind != "search")
         screen = screen.with_(filters=(Filter.search(*resource.search), *others))
-    form = resource.form if resource.form is not None else derive_form(schema)
+    form = (
+        dress(resource.form, schema)
+        if resource.form is not None
+        else derive_form(schema)
+    )
     detail = (
         resource.detail if resource.detail is not None else derive_detail(schema, form)
     )
@@ -188,6 +200,64 @@ def derive_filters(schema: Schema) -> tuple[Filter, ...]:
             filters.append(Filter.date_range(field.name))
             break
     return tuple(filters)
+
+
+def dress(form: Form, schema: Schema) -> Form:
+    """Fill in what a declared form left unsaid.
+
+    "Most fields say nothing but their name" has to hold for a form you wrote
+    as well as one that was derived, or ``Field("published_at")`` inside a
+    ``Section`` would render as a text box while the same field on a derived
+    form got a date picker — the same declaration behaving differently
+    depending on how much of the screen you spelled out.
+
+    Only the unset is filled: a named widget always wins, and so does an
+    explicit ``required=``.
+    """
+    sections = tuple(_dressed(section, schema) for section in form.sections)
+    sidebar = tuple(_dressed(section, schema) for section in form.sidebar)
+    return Form(
+        *sections,
+        submit=form.submit,
+        layout=form.layout,
+        sidebar=sidebar,
+        on_save=form.on_save,
+        validate=form.validate,
+        deletable=form.deletable,
+        cancel=form.cancel,
+        description=form.description,
+        width=form.width,
+    )
+
+
+def _dressed(section: Section, schema: Schema) -> Section:
+    return Section(
+        section.title,
+        *(_dressed_field(field, schema) for field in section.fields),
+        description=section.description,
+        collapsed=section.collapsed,
+        columns=section.columns,
+        show=section.show,
+        access=section.access,
+        icon=section.icon,
+    )
+
+
+def _dressed_field(field: Field, schema: Schema) -> Field:
+    described = schema.resolve(field.name)
+    if described is None:
+        # A field naming nothing is `check`'s problem, not this one's. Leaving
+        # it alone keeps the error about the reference rather than about a
+        # widget nobody asked for.
+        return field
+    changes: dict[str, typing.Any] = {}
+    if field.widget is None:
+        changes["widget"] = widget_for(described)
+    if field.required is None:
+        changes["required"] = described.required and not described.has_default
+    if field.help is None and described.description:
+        changes["help"] = described.description
+    return field.with_(**changes) if changes else field
 
 
 def derive_form(schema: Schema) -> Form:
@@ -437,7 +507,10 @@ def _check_column(column: Column, schema: Schema, model: str) -> list[Declaratio
                     )
                 )
 
-    sort = column.sort_field
+    # Only an explicit `sort="..."` can be wrong. A computed column with no
+    # sort is not an error: `Column.sort_field` already answers None for it, so
+    # the header is simply not clickable — which is honest, because there is
+    # nothing for the database to order by.
     if isinstance(column.sort, str) and schema.resolve(column.sort) is None:
         problems.append(
             DeclarationError(
@@ -445,14 +518,6 @@ def _check_column(column: Column, schema: Schema, model: str) -> list[Declaratio
                 where=column.where,
                 got=column.sort,
                 options=schema.names,
-            )
-        )
-    elif sort is not None and column.name is None:
-        problems.append(
-            DeclarationError(
-                f"{label} is computed, so it has no column to sort by.",
-                hint="Pass sort='<column>' to name one, or sort=False.",
-                where=column.where,
             )
         )
     return problems

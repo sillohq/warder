@@ -586,3 +586,21 @@ async def test_a_custom_filter_receives_its_value(posts):
         "props"
     ]
     assert props["total"] == 1
+
+
+async def test_a_card_loader_may_return_a_query(posts):
+    # `lambda ctx: Post.all().count()` is the obvious thing to write, and the
+    # count is what was meant -- not "<CountQuery object at 0x...>".
+    from warder import Card, Dashboard
+
+    admin = site(Resource(Post))
+    admin.add(Dashboard(Card.number("Posts", lambda ctx: Post.all().count())))
+    props = page_of(await _get(client(admin), "/admin", headers=INERTIA))["props"]
+    assert props["cards"][0]["data"] == 4
+
+
+async def test_a_page_handler_may_return_a_query_result(posts):
+    admin = site(Resource(Post))
+    admin.add(Page("/count", "Count", lambda ctx: Post.all().count()))
+    props = page_of(await _get(client(admin), "/admin/count", headers=INERTIA))["props"]
+    assert props["page"] == 4

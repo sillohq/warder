@@ -37,7 +37,7 @@ import typing
 
 from sillo import responses
 
-from warder._async import resolved
+from warder._async import awaited
 
 if typing.TYPE_CHECKING:
     from sillo import HttpContext
@@ -80,7 +80,7 @@ class Prop:
         self.group = group
 
     async def value(self) -> typing.Any:
-        return await resolved(self.load())
+        return await awaited(self.load())
 
 
 def optional(load: typing.Callable[[], typing.Any]) -> Prop:
@@ -221,7 +221,7 @@ async def _resolve(
             sent[name] = await value.value()
             continue
         if callable(value):
-            sent[name] = await resolved(value())
+            sent[name] = await awaited(value())
             continue
         sent[name] = value
     return sent, deferred

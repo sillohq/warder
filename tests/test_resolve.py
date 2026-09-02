@@ -589,3 +589,79 @@ def test_a_nullable_choice_is_clearable():
 
     field = ModelField(name="x", kind="text", choices=(("a", "A"),), null=True)
     assert widget_for(field).option("clearable")
+
+
+def test_a_computed_column_may_name_a_column_to_sort_by():
+    # The check for "computed, so nothing to sort by" fired on exactly the
+    # declaration that answers it, because sort_field resolves to the named
+    # column while the column's own name is still None.
+    screen = List(Column.compute("Read", lambda row: 1, sort="words"))
+    assert check(Resource(Post, list=screen)) == []
+
+
+def test_a_computed_column_without_a_sort_is_not_an_error():
+    screen = List(Column.compute("Read", lambda row: 1))
+    assert check(Resource(Post, list=screen)) == []
+    assert screen.columns[0].sort_field is None
+
+
+# A declared form gets the same inference a derived one does. Otherwise
+# Field("published_at") renders as a text box inside a Section you wrote and as
+# a date picker when the form was derived — the same declaration behaving
+# differently depending on how much of the screen you spelled out.
+
+
+def test_a_declared_field_gets_a_widget_from_its_column():
+    bound = bind(Resource(Post, form=Form(Section("", Field("published_at")))))
+    assert bound.form.fields[0].widget.kind == "datetime"
+
+
+def test_a_named_widget_always_wins():
+    from warder import Widget
+
+    form = Form(Section("", Field("published_at", widget=Widget.text())))
+    assert bind(Resource(Post, form=form)).form.fields[0].widget.kind == "text"
+
+
+def test_required_is_read_off_the_column():
+    bound = bind(Resource(Post, form=Form(Section("", Field("title"), Field("body")))))
+    required = {field.name: field.required for field in bound.form.fields}
+    assert required == {"title": True, "body": False}
+
+
+def test_an_explicit_required_wins():
+    form = Form(Section("", Field("title", required=False)))
+    assert bind(Resource(Post, form=form)).form.fields[0].required is False
+
+
+def test_a_column_description_becomes_the_help_text():
+    bound = bind(Resource(Post, form=Form(Section("", Field("title")))))
+    assert bound.form.fields[0].help == "The headline"
+
+
+def test_declared_help_wins_over_the_column():
+    form = Form(Section("", Field("title", help="Ours")))
+    assert bind(Resource(Post, form=form)).form.fields[0].help == "Ours"
+
+
+def test_dressing_keeps_the_sections_and_their_settings():
+    form = Form(
+        Section("Content", Field("title")),
+        Section("Audit", Field("published_at"), collapsed=True),
+        submit="Publish",
+        width="wide",
+    )
+    dressed = bind(Resource(Post, form=form)).form
+    assert [s.title for s in dressed.sections] == ["Content", "Audit"]
+    assert dressed.sections[1].collapsed
+    assert dressed.submit == "Publish"
+    assert dressed.width == "wide"
+
+
+def test_dressing_leaves_an_unresolvable_field_alone():
+    # The error should be about the reference, not about a widget nobody asked
+    # for; `check` is what reports it.
+    from warder.resolve import dress
+
+    form = dress(Form(Section("", Field("nope"))), Schema.of(Post))
+    assert form.fields[0].widget is None

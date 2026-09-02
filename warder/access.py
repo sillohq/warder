@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import typing
 
-from warder._async import resolved
+from warder._async import awaited, resolved
 from warder._check import callable_, identifier
 from warder.base import Declaration
 from warder.naming import permission
@@ -57,7 +57,7 @@ async def _resolve(rule: Rule, ctx: typing.Any, row: typing.Any = None) -> bool:
         return bool(rule)
     if isinstance(rule, str):
         return await holds_permission(ctx, rule)
-    return bool(await resolved(rule(ctx, row)))
+    return bool(await awaited(rule(ctx, row)))
 
 
 async def holds_permission(ctx: typing.Any, name: str) -> bool:
@@ -223,7 +223,7 @@ class Gate(Declaration):
         if self.kind == "not":
             return not await self.gates[0].allows(ctx)
         if self.kind == "custom":
-            return bool(await resolved(self.value(ctx)))
+            return bool(await awaited(self.value(ctx)))
 
         user = current_user(ctx)
         if user is None:
@@ -451,7 +451,7 @@ class Scope(Declaration):
         if self.kind == "none":
             return rows.filter(pk__in=[])
         if self.kind == "filters":
-            filters = await resolved(self.value(ctx))
+            filters = await awaited(self.value(ctx))
             return rows.filter(**dict(filters)) if filters else rows
         return await resolved(self.value(ctx, rows))
 

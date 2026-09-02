@@ -372,3 +372,15 @@ async def test_a_resource_queryset_that_returns_a_queryset_is_not_executed(
     resource = Resource(model("Post"), queryset=lambda ctx, base: base.filter(a=1))
     narrowed = await resource.rows(anyone, rows)
     assert isinstance(narrowed, Rows)
+
+
+async def test_a_gate_may_answer_with_an_awaitable(anyone):
+    # A gate returns an answer, not a query, so anything awaitable is awaited.
+    class Answer:
+        def __await__(self):
+            async def yes():
+                return True
+
+            return yes().__await__()
+
+    assert await Gate.custom(lambda ctx: Answer()).allows(anyone)

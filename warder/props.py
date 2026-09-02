@@ -29,7 +29,7 @@ import enum
 import typing
 import uuid
 
-from warder._async import resolved
+from warder._async import awaited
 from warder.access import Access
 from warder.filters import Filter
 from warder.schema import Schema
@@ -484,7 +484,7 @@ async def _panel_props(
         body = panel.target(row) if callable(panel.target) else ""
         props["options"]["body"] = str(body)
     elif panel.kind == "custom" and callable(panel.option("props")):
-        built = await resolved(panel.option("props")(ctx, row))
+        built = await awaited(panel.option("props")(ctx, row))
         props["options"]["props"] = jsonable(built)
 
     return props
