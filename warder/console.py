@@ -9,9 +9,15 @@ same spelling ASGI servers use.
     a misspelled column fails in CI rather than in production.
 
 ``warder create-admin app.admin:admin``
-    The account you sign in with. Prompts for anything you do not pass, refuses
-    a blank or duplicated one, and hashes through ``sillo.hashing`` — the
-    password is never printed, echoed or stored.
+    The account you sign in with. Prompts for anything you do not pass — but
+    only at a terminal, so a script gets an error rather than a hang. It writes
+    the column the *sign-in form* asks for, sets only the flags the model
+    actually has, and hashes through ``sillo.hashing``: the password is never
+    printed, echoed or stored. ``--set column=value`` fills in anything your own
+    user model requires that Warder cannot know about.
+
+``warder users app.admin:admin``
+    Who can already sign in, and when they last did.
 
 ``warder permissions app.admin:admin``
     What the site declares. Derived from what is registered, so it is how you
@@ -101,7 +107,21 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Create a staff account rather than a superuser.",
     )
+    create.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="COLUMN=VALUE",
+        help="Set another column on the new row. Repeatable. For a user model "
+        "of your own that requires something Warder cannot know about.",
+    )
     create.set_defaults(run=_create_admin)
+
+    target(
+        commands.add_parser(
+            "users", help="List the accounts that can sign in to the admin."
+        )
+    ).set_defaults(run=_users)
 
     return parser
 
@@ -176,6 +196,13 @@ def _create_admin(args: argparse.Namespace) -> int:
         return 130
 
 
+def _users(args: argparse.Namespace) -> int:
+    admin = _load(args.target)
+    if admin is None:
+        return 2
+    return asyncio.run(_show_users(admin))
+
+
 async def _create(admin: typing.Any, args: argparse.Namespace) -> int:
     manager = await _database(admin)
     if manager is None:
@@ -191,39 +218,282 @@ async def _create(admin: typing.Any, args: argparse.Namespace) -> int:
 async def _write(admin: typing.Any, args: argparse.Namespace) -> int:
     users = admin.auth.resolve().users
 
-    email = (args.email or _ask("Email: ")).strip()
-    if not email:
-        print("An email address is required.", file=sys.stderr)
-        return 1
-    username = (args.username or email.split("@")[0]).strip()
-
-    if await users.filter(email=email).exists():
-        print(f"{email} already has an account.", file=sys.stderr)
-        return 1
-    if await users.filter(username=username).exists():
-        print(f"The username {username!r} is taken.", file=sys.stderr)
+    unregistered = _unregistered(users)
+    if unregistered is not None:
+        print(unregistered, file=sys.stderr)
         return 1
 
-    password = args.password or _ask_secret()
+    # The column the sign-in form asks for is the column this writes. They have
+    # to be the same one, or the account is created and cannot sign in.
+    identity = admin.auth.login.field
+    columns = set(typing.cast(typing.Any, users)._meta.fields_map)
+    unusable = _unusable(users, identity, columns)
+    if unusable is not None:
+        print(unusable, file=sys.stderr)
+        return 1
+
+    # Prompting is for a person at a terminal. Piped into a script or run in
+    # CI there is nobody to answer, and a command that waits forever for an
+    # answer that will never come is worse than one that says what it needs.
+    asking = _interactive()
+    label = identity.replace("_", " ")
+
+    value = (args.email or (_ask(f"{label.capitalize()}: ") if asking else "")).strip()
+    if not value:
+        print(
+            f"A{'n' if label[0] in 'aeiou' else ''} {label} is required."
+            + ("" if asking else " Pass --email."),
+            file=sys.stderr,
+        )
+        return 1
+    if identity == "email" and "@" not in value:
+        print(f"{value!r} does not look like an email address.", file=sys.stderr)
+        return 1
+
+    fields: dict[str, typing.Any] = {identity: value}
+    username = None
+    if "username" in columns and identity != "username":
+        derived = value.split("@")[0]
+        username = (
+            args.username or (_ask_default("Username", derived) if asking else derived)
+        ).strip()
+        fields["username"] = username
+
+    try:
+        if await users.filter(**{identity: value}).exists():
+            print(f"{value} already has an account.", file=sys.stderr)
+            return 1
+        if username and await users.filter(username=username).exists():
+            print(f"The username {username!r} is taken.", file=sys.stderr)
+            return 1
+    except Exception as unreachable:
+        missing = _missing_table(users, unreachable)
+        if missing is None:
+            raise
+        print(missing, file=sys.stderr)
+        return 1
+
+    password = args.password or (_ask_secret() if asking else None)
     if password is None:
+        if not asking:
+            print(
+                "A password is required. Pass --password, or run this in a "
+                "terminal to be prompted for one without echo.",
+                file=sys.stderr,
+            )
         return 1
 
-    user = users(
-        email=email,
-        username=username,
-        is_active=True,
-        is_staff=True,
-        is_superuser=not args.staff,
-    )
-    if args.name and "name" in users._meta.fields_map:
-        user.name = args.name
+    # Only what this model actually has. Somebody's own user model may have no
+    # `is_superuser`, and setting an attribute the table does not have fails at
+    # the insert with a message about SQL.
+    for name, given in (
+        ("is_active", True),
+        ("is_staff", True),
+        ("is_superuser", not args.staff),
+        ("name", args.name),
+    ):
+        if name in columns and given is not None:
+            fields[name] = given
+
+    extra, bad = _extra(args)
+    if bad is not None:
+        print(bad, file=sys.stderr)
+        return 1
+    fields.update(extra)
+
+    unmet = _unmet(users, fields)
+    if unmet is not None:
+        print(unmet, file=sys.stderr)
+        return 1
+
+    user = users(**fields)
     user.set_password(password)
     await user.save()
 
-    role = "staff" if args.staff else "superuser"
-    print(f"Created {role} {email} (username {username}).")
+    role = "staff account" if args.staff else "superuser"
+    named = f" (username {username})" if username else ""
+    print(f"Created {role} {value}{named}.")
+    if "is_staff" not in columns:
+        print(
+            f"  Note: {users.__name__} has no is_staff column, so the default "
+            "Gate.staff() will admit nobody. Use a different gate.",
+            file=sys.stderr,
+        )
     print(f"Sign in at {admin.prefix}/login")
     return 0
+
+
+def _extra(args: argparse.Namespace) -> tuple[dict[str, typing.Any], str | None]:
+    """The ``--set column=value`` pairs, or a message about a malformed one."""
+    values: dict[str, typing.Any] = {}
+    for pair in getattr(args, "set", []) or []:
+        name, sep, value = str(pair).partition("=")
+        if not sep or not name.strip():
+            return {}, f"--set takes column=value, got {pair!r}."
+        values[name.strip()] = value
+    return values, None
+
+
+def _unmet(users: type, fields: typing.Mapping[str, typing.Any]) -> str | None:
+    """A message naming columns this row needs and does not have, else ``None``.
+
+    Somebody's own user model may require a tenant, a display name or an email
+    even when sign-in is by username. Without this the insert fails on a
+    validation error naming a column the command never mentioned.
+    """
+    meta = typing.cast(typing.Any, users)._meta
+    missing = [
+        name
+        for name, column in meta.fields_map.items()
+        if _needs_a_value(name, column, fields)
+    ]
+    if not missing:
+        return None
+    pairs = " ".join(f"--set {name}=..." for name in missing)
+    return (
+        f"{users.__name__} also needs {', '.join(repr(n) for n in missing)}, "
+        "which this command does not know how to fill in.\n\n"
+        f"  Pass them:\n\n      {pairs}"
+    )
+
+
+def _needs_a_value(
+    name: str, column: typing.Any, fields: typing.Mapping[str, typing.Any]
+) -> bool:
+    """Whether this column will be empty and the database will mind.
+
+    Everything the ORM fills in for itself is excluded — the key, the
+    ``auto_now`` timestamps, anything with a default — because listing those
+    would send somebody to pass a value the ORM is about to overwrite.
+    """
+    if name in fields or name == "password":
+        return False
+    if getattr(column, "null", False) or getattr(column, "generated", False):
+        return False
+    if getattr(column, "pk", False) or getattr(column, "primary_key", False):
+        return False
+    if getattr(column, "auto_now", False) or getattr(column, "auto_now_add", False):
+        return False
+    if getattr(column, "default", None) is not None:
+        return False
+    if getattr(column, "related_model", None) is not None:
+        return False
+    return bool(getattr(column, "required", False))
+
+
+def _unusable(users: type, identity: str, columns: set[str]) -> str | None:
+    """A message when this model cannot back a sign-in, else ``None``.
+
+    Two things are genuinely required: the column the login form asks for, and
+    a way to hash a password. Everything else is optional and simply not set.
+    """
+    if identity not in columns:
+        usable = ", ".join(sorted(name for name in columns if not name.startswith("_")))
+        return (
+            f"{users.__name__} has no {identity!r} column, but the sign-in form "
+            f"asks for one.\n\n"
+            f"  Either point the form at a column this model has:\n\n"
+            f"      Auth(users={users.__name__}, login=Login(field='username'))\n\n"
+            f"  Its columns are: {usable}"
+        )
+    if not callable(getattr(users, "set_password", None)):
+        return (
+            f"{users.__name__} cannot hash a password.\n\n"
+            "  A user model for the admin has to subclass "
+            "sillo.users.UserBaseModel,\n"
+            "  which is where set_password and check_password come from."
+        )
+    return None
+
+
+async def _show_users(admin: typing.Any) -> int:
+    users = admin.auth.resolve().users
+    manager = await _database(admin)
+    if manager is None:
+        return 2
+    try:
+        unregistered = _unregistered(users)
+        if unregistered is not None:
+            print(unregistered, file=sys.stderr)
+            return 1
+        try:
+            rows = await users.all().limit(200)
+        except Exception as unreachable:
+            missing = _missing_table(users, unreachable)
+            if missing is None:
+                raise
+            print(missing, file=sys.stderr)
+            return 1
+        if not rows:
+            print("No accounts yet. Create one with: warder create-admin <target>")
+            return 0
+        print(f"{'EMAIL':34} {'USERNAME':20} {'ROLE':11} {'ACTIVE':7} LAST SIGN-IN")
+        for row in rows:
+            role = (
+                "superuser"
+                if getattr(row, "is_superuser", False)
+                else "staff"
+                if getattr(row, "is_staff", False)
+                else "-"
+            )
+            seen = getattr(row, "last_login", None)
+            print(
+                f"{getattr(row, 'email', '')!s:34} "
+                f"{getattr(row, 'username', '')!s:20} "
+                f"{role:11} "
+                f"{('yes' if getattr(row, 'is_active', True) else 'no'):7} "
+                f"{seen.strftime('%Y-%m-%d %H:%M') if seen else 'never'}"
+            )
+        return 0
+    finally:
+        await _close(manager)
+
+
+def _unregistered(users: type) -> str | None:
+    """A message when the user model is not registered with the ORM, else None.
+
+    This is the mistake everybody makes once, and Tortoise's own answer to it —
+    ``default_connection for the model ... cannot be None`` — says nothing
+    about what to do. Warder ships its models but does not register them:
+    model discovery scans a module's namespace, so importing them would put
+    ``warder_users`` into the database of every project that installed the
+    package.
+    """
+    meta = getattr(users, "_meta", None)
+    if meta is None:
+        return f"{users.__name__} is not a sillo.record model."
+    try:
+        if meta.db is not None:
+            return None
+    except Exception:
+        pass
+    module = users.__module__
+    return (
+        f"{users.__name__} is not registered with the database.\n\n"
+        f"  Add {module!r} to the model modules:\n\n"
+        f"      setup_record(app, config, model_modules=[..., {module!r}])\n\n"
+        "  Warder ships its user model but does not register it for you: model\n"
+        "  discovery scans a module's namespace, so importing it would create\n"
+        "  warder_users in the database of every project that installs Warder."
+    )
+
+
+def _missing_table(users: type, error: Exception) -> str | None:
+    """A message when the table does not exist yet, else None."""
+    text = str(error).lower()
+    if "no such table" not in text and "does not exist" not in text:
+        return None
+    table = getattr(getattr(users, "_meta", None), "db_table", users.__name__.lower())
+    module = users.__module__
+    return (
+        f"The table {table!r} does not exist yet.\n\n"
+        "  This project builds its schema from migrations rather than on\n"
+        "  start-up, so the table has to be migrated in:\n\n"
+        f"      sillo record make add_{table}\n"
+        "      sillo record migrate\n\n"
+        f"  Make sure {module!r} is in the model modules first, or the\n"
+        "  migration will not include it."
+    )
 
 
 async def _close(manager: typing.Any) -> None:
@@ -243,11 +513,24 @@ async def _close(manager: typing.Any) -> None:
 # ------------------------------------------------------------------ plumbing
 
 
+def _interactive() -> bool:
+    """Whether there is a person at a terminal to answer a question."""
+    try:
+        return bool(sys.stdin.isatty())
+    except (AttributeError, ValueError):  # pragma: no cover - detached stdin
+        return False
+
+
 def _ask(prompt: str) -> str:
     try:
         return input(prompt)
     except EOFError:
         return ""
+
+
+def _ask_default(prompt: str, fallback: str) -> str:
+    """Ask, showing the default, and take the default on an empty answer."""
+    return _ask(f"{prompt} [{fallback}]: ").strip() or fallback
 
 
 def _ask_secret() -> str | None:

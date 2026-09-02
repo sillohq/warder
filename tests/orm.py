@@ -17,6 +17,7 @@ from enum import Enum, IntEnum
 
 from sillo.record import Model
 from sillo.record.fields import PasswordField, SlugField
+from sillo.users import UserBaseModel
 from tortoise import Tortoise, fields
 
 
@@ -106,6 +107,25 @@ class Wide(Model):
 
     class Meta:
         table = "warder_wide"
+
+
+class Person(UserBaseModel):
+    """Somebody's own user model — what `Auth(users=...)` points at."""
+
+    display = fields.CharField(max_length=120, null=True)
+
+    def __str__(self) -> str:
+        return self.display or self.email
+
+    class Meta:
+        table = "warder_people"
+
+
+class Sparse(UserBaseModel):
+    """A user model with no staff flag, to prove the gate warning fires."""
+
+    class Meta:
+        table = "warder_sparse"
 
 
 class Required(Model):
