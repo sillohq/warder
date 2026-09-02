@@ -186,6 +186,31 @@ Outcomes are free builders, the way `json()` and `text()` are elsewhere in
 Sillo — `notice`, `warning`, `problem`, `go`, `download`, `modal`, `refresh`.
 Returning `None` means "it worked, reload".
 
+## Signing in
+
+```bash
+warder create-admin app.admin:admin     # prompts for email and password
+warder users app.admin:admin            # who can sign in, and when they last did
+```
+
+`Admin()` with no `auth=` already has a working sign-in: the bundled
+`AdminUser`, a session backend, `Gate.staff()`, and session middleware installed
+on mount if the application has none — a sign-in page without a session is a
+form that forgets you.
+
+`create-admin` writes wherever the admin authenticates from. It writes the column
+the *sign-in form* asks for, sets only the flags the model actually has, reads
+the password twice without echo, and hashes through `sillo.hashing`. It prompts
+only at a terminal, so a script gets an error naming the flag rather than a hang.
+
+The bundled models are **not registered by importing Warder** — model discovery
+scans a module's namespace, so that would put `warder_users` in the database of
+every project that installs the package. Name it to opt in:
+
+```python
+setup_record(app, config, model_modules=["myapp.models", "warder.models"])
+```
+
 ## Permissions: four questions, four layers
 
 They really are different questions, and one answer does not cover the others.
@@ -275,11 +300,15 @@ which is what keeps theming a keyword rather than an ejection.
 Inertia, React and Tailwind, and it is in the wheel.
 
 ```
-list      sortable columns, URL-backed filters, selection, bulk actions, paging
-form      one control per widget kind, conditional fields, per-field errors
-detail    panels: fields, child tables, related rows, your own components
-dashboard number, chart, table and custom cards
-shell     grouped navigation, flash messages, and ⌘K to go anywhere
+list      sortable columns, URL-backed filters, selection, bulk actions, paging,
+          column visibility, CSV and JSON export of the filtered set
+form      a control per widget kind, conditional fields, per-field errors,
+          a searching relation picker, Markdown with preview
+detail    panels: fields, and child tables drawn with the child resource's
+          own columns
+dashboard number, chart and table cards
+shell     grouped navigation, flash messages, a light/dark toggle, `/` to
+          search and ⌘K to go anywhere
 ```
 
 **Python sends a resolved declaration; React is a generic renderer for it.** The
@@ -367,8 +396,10 @@ Alpha, and honest about which parts exist.
 | ✅ | The resolver: binding to models, deriving screens, checking every reference |
 | 🚧 | The routes, the Inertia interface, and the bundled assets |
 | ✅ | The routes, the Inertia interface, and the bundled assets |
-| ✅ | `warder check` and `warder permissions` |
-| 🚧 | Inline editing in child panels, MFA and impersonation |
+| ✅ | Session sign-in, throttling, session lifetimes, the bundled user model |
+| ✅ | `warder check`, `create-admin`, `users`, `permissions`, `routes` |
+| 🚧 | Inline editing in child panels; MFA and impersonation are declarable but not yet enforced |
+| 🚧 | The activity log is written to but has no screen yet |
 | 🚧 | `warder permissions sync`, `warder eject` |
 
 `admin.mount(app)` works end to end. What is not built is listed above rather

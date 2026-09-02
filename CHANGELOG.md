@@ -33,8 +33,8 @@ All notable changes to Warder are recorded here. The format follows
 - **`When`**, a form condition serialised into props so a conditional field
   appears the instant another field changes, and re-checked on the server before
   a write.
-- 852 tests. The declaration layer opens no database at all; the interface is
-  tested end to end against a real one.
+- 962 tests. The declaration layer opens no database at all; the interface,
+  the routes and the CLI are tested end to end against a real one.
 
 - **The resolver.** `Resource(Post)` with no screens becomes a working list,
   form and detail page, derived from the model's own columns at mount. Widgets
@@ -72,6 +72,20 @@ All notable changes to Warder are recorded here. The format follows
 - **A bundled wheel**: one JavaScript file and one stylesheet under
   `warder/static/`, no CDN, no Node at install time. `build_ui.py` fails the
   build rather than shipping a wheel whose interface did not compile.
+
+- **Signing in.** `Admin()` with no `auth=` gets the bundled `AdminUser`, a
+  session backend, `Gate.staff()` and session middleware installed on mount.
+  Throttling counts per identity *and* per address. The session carries an id
+  and two timestamps and never a user, so deactivating somebody takes effect on
+  their next click rather than their next sign-in.
+- **`warder create-admin`** and **`warder users`**. `create-admin` writes the
+  column the sign-in form asks for, sets only the flags the model has, and
+  refuses up front — naming what to do — when the model is unregistered, its
+  table is missing, it cannot hash a password, or it needs a column Warder
+  cannot know about.
+- **Export**: CSV and JSON of the filtered set, capped, with a guard on cells a
+  spreadsheet would run as a formula.
+- **Column visibility** and a **light/dark toggle**, both remembered per browser.
 
 ### Notes
 
