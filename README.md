@@ -253,23 +253,49 @@ Admin(theme=Theme.native())
 Everything writes CSS custom properties into the shell. No rebuild, no Node —
 which is what keeps theming a keyword rather than an ejection.
 
-## Interface
+## The interface
 
-Inertia, React and Tailwind. Python sends a *resolved declaration* as props and
-the React side is a generic renderer for that shape — it does not know what a
-`Post` is. That is the property that makes the whole thing work: adding
-`Column.badge("status", colors=…)` changes a prop, not a template, so a new
-resource never needs a UI rebuild.
+Inertia, React and Tailwind, and it is in the wheel.
 
-**`pip install warder` does not require Node.** Built assets ship in the wheel
-under `warder/static/`; the React sources live in `ui/` in the repository and are
-excluded from it. No CDN and no external request, so the admin works air-gapped
-and under a Content-Security-Policy that forbids third-party script.
+```
+list      sortable columns, URL-backed filters, selection, bulk actions, paging
+form      one control per widget kind, conditional fields, per-field errors
+detail    panels: fields, child tables, related rows, your own components
+dashboard number, chart, table and custom cards
+shell     grouped navigation, flash messages, and ⌘K to go anywhere
+```
+
+**Python sends a resolved declaration; React is a generic renderer for it.** The
+front end has never heard of a `Post` — it knows what a badge column is and what
+a relation picker is. So adding `Column.badge("status", colors=…)` changes a
+prop, not a template, and a new resource never needs the interface rebuilt.
+
+The division of labour is deliberate. **Python extracts**: which columns exist
+for *this* person, which rows they may see, what each cell holds — all of it
+authorisation-dependent and impossible to do safely in a browser. **React
+formats**: money in the viewer's locale, a timestamp as "3 days ago", a status as
+a coloured pill — all of it locale- and viewport-dependent, and wasteful on a
+server that knows neither.
+
+**`pip install warder` does not require Node.** One JavaScript file and one
+stylesheet ship under `warder/static/`; the React sources live in `ui/` and are
+excluded from the wheel. One file because the admin is served under a prefix
+*you* choose, and code-splitting would have to resolve chunk URLs against a base
+it cannot know until runtime. Nothing is fetched from a CDN, so the admin works
+on an air-gapped network and under a Content-Security-Policy that forbids
+third-party script — which are the normal conditions for the people who most
+want an admin panel.
+
+Inertia is implemented in this package rather than depended on: `sillo-inertia`
+is written against the 0.x `Request`/`Response` API and this is written against
+the context API, and blocking the whole interface on another repository's port
+was the wrong trade against two hundred lines of a published protocol.
 
 Customising has three rungs, in increasing order of commitment: **theme tokens**
-(no rebuild), **slots** — `admin.slot("list.toolbar", "acme/ExportButton")`,
-mounted from your own build — and **`warder eject`**, which copies `ui/` into your
-project and hands you the upgrades.
+(no rebuild — Python writes them into the document as custom properties),
+**slots** — `admin.slot("list.toolbar", "acme/ExportButton")`, mounted from your
+own build — and **`warder eject`**, which copies `ui/` into your project and
+hands you the upgrades.
 
 ## `Resource(Post)` is already a screen
 
@@ -323,11 +349,13 @@ Alpha, and honest about which parts exist.
 | ✅ | The site registry, navigation, declared permissions, and the checks that need no ORM |
 | ✅ | The resolver: binding to models, deriving screens, checking every reference |
 | 🚧 | The routes, the Inertia interface, and the bundled assets |
+| ✅ | The routes, the Inertia interface, and the bundled assets |
 | ✅ | `warder check` and `warder permissions` |
+| 🚧 | Inline editing in child panels, MFA and impersonation |
 | 🚧 | `warder permissions sync`, `warder eject` |
 
-`Admin.check()` and `Admin.bind()` both work today. `Admin.mount()` runs both and
-then raises `NotConfigured` at the route-building step until the routes land.
+`admin.mount(app)` works end to end. What is not built is listed above rather
+than implied by silence.
 
 ## The vocabulary
 
@@ -351,9 +379,14 @@ an admin module importing both would have a bug in it that reads as correct code
 
 ## Requirements
 
-Python 3.10 to 3.14, and `sillo-framework`. The declaration layer needs nothing
-else — the whole test suite runs without a database, a connection, or a running
-application.
+Python 3.10 to 3.14 and `sillo-framework`. Nothing else at runtime, and no Node.
+
+Working on Warder itself needs Node, but only to rebuild the interface:
+
+```bash
+cd ui && npm install && npm run build     # → warder/static/
+warder check app.admin:admin              # no server, no port, no database
+```
 
 ## Licence
 

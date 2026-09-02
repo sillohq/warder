@@ -442,3 +442,57 @@ async def test_a_partial_reload_sends_only_what_was_asked_for(seeded):
         )
     )["props"]
     assert set(props) == {"rows", "total"}
+
+
+# ----------------------------------------------------------------- the bundle
+
+
+async def test_the_stylesheet_is_served(seeded):
+    from warder.assets import Assets
+
+    entry = Assets().entry()
+    response = await _get(client(build()), f"/admin/assets/{entry['css'][0]}")
+    assert response.status_code == 200
+    assert "text/css" in response.headers["content-type"]
+
+
+async def test_the_script_is_served(seeded):
+    from warder.assets import Assets
+
+    entry = Assets().entry()
+    response = await _get(client(build()), f"/admin/assets/{entry['file']}")
+    assert response.status_code == 200
+    assert response.text.startswith(("import", "var", "const", "function", "(", "!"))
+
+
+async def test_the_bundle_is_cached_forever(seeded):
+    # Content-hashed filenames, so the answer to "may I cache this" is yes.
+    from warder.assets import Assets
+
+    response = await _get(client(build()), f"/admin/assets/{Assets().entry()['file']}")
+    assert "immutable" in response.headers.get("cache-control", "")
+
+
+async def test_the_admin_is_not_indexed(seeded):
+    body = (await _get(client(build()), "/admin/post")).text
+    assert 'name="robots" content="noindex,nofollow"' in body
+
+
+async def test_the_document_names_no_external_host(seeded):
+    # Air-gapped networks and strict CSPs are the normal conditions for the
+    # people who most want an admin panel.
+    body = (await _get(client(build()), "/admin/post")).text
+    assert "http://" not in body.replace("http://admin.test", "")
+    assert "cdn" not in body.lower()
+
+
+async def test_a_second_admin_can_be_mounted_at_another_prefix(seeded):
+    admin = Admin(
+        title="Internal",
+        prefix="/internal/ops",
+        auth=Auth(gate=Gate.custom(lambda c: True)),
+    )
+    admin.add(Resource(Tag))
+    response = await _get(client(admin), "/internal/ops/tag")
+    assert response.status_code == 200
+    assert "/internal/ops/assets/warder." in response.text

@@ -20,10 +20,22 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # The interface is compiled into the wheel, so CI builds it once before
+      # the tests: several of them assert that the bundle is actually served.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Build the interface
+        run: npm ci && npm run build
+        working-directory: ui
+
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install "sillo-framework" "tortoise-orm>=0.21" httpx
+          pip install "sillo-framework" "tortoise-orm>=0.21" httpx bcrypt
           pip install pytest pytest-asyncio pytest-cov ruff mypy
           pip install -e . --no-deps
 
@@ -35,6 +47,10 @@ jobs:
 
       - name: Types
         run: mypy warder --ignore-missing-imports
+
+      - name: Types (interface)
+        run: npx tsc --noEmit
+        working-directory: ui
 
       - name: Test
         run: pytest --cov --cov-report=term-missing
@@ -74,7 +90,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - run: pip install build
+      # build_ui.py runs Vite as part of this and fails the build if no
+      # manifest comes out, because a wheel without its interface installs
+      # cleanly and renders a blank page.
       - run: python -m build
       # The React sources are in the repository and never in the wheel:
       # installing an admin panel is not signing up to run Vite.
@@ -86,5 +108,8 @@ jobs:
           assert not any(n.startswith("ui/") for n in names), "ui/ leaked into the wheel"
           assert not any(n.endswith("package.json") for n in names), "npm files in the wheel"
           assert "warder/py.typed" in names, "py.typed is missing"
+          assert "warder/static/manifest.json" in names, "the interface is missing"
+          assert any(n.endswith(".js") for n in names), "no bundle in the wheel"
+          assert any(n.endswith(".css") for n in names), "no stylesheet in the wheel"
           print("\n".join(n for n in names if not n.startswith("warder-")))
           PY

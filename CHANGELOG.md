@@ -33,7 +33,8 @@ All notable changes to Warder are recorded here. The format follows
 - **`When`**, a form condition serialised into props so a conditional field
   appears the instant another field changes, and re-checked on the server before
   a write.
-- 818 tests, and no database connection in any of them.
+- 852 tests. The declaration layer opens no database at all; the interface is
+  tested end to end against a real one.
 
 - **The resolver.** `Resource(Post)` with no screens becomes a working list,
   form and detail page, derived from the model's own columns at mount. Widgets
@@ -56,6 +57,22 @@ All notable changes to Warder are recorded here. The format follows
   connection. `check` exits non-zero on the first problem, so a misspelled
   column fails in CI rather than in production.
 
+- **The interface** — list, form, detail, dashboard, login and a command
+  palette, in Inertia, React and Tailwind. Python sends a resolved declaration
+  and the renderer is generic over it: Python extracts what this person may see,
+  the browser formats it in their locale.
+- **The routes**: nine per resource, plus pages, a relation-picker endpoint,
+  login and the asset mount. Scope is applied before any row is read, so a row
+  outside your scope is a 404 rather than a 403 — telling you it exists is
+  itself a disclosure.
+- **The Inertia protocol**, implemented here rather than depended on, since
+  `sillo-inertia` is on the 0.x API. A redirect after a mutation is 303, a stale
+  asset version is a 409 with a location, and a partial reload sends only what
+  it asked for.
+- **A bundled wheel**: one JavaScript file and one stylesheet under
+  `warder/static/`, no CDN, no Node at install time. `build_ui.py` fails the
+  build rather than shipping a wheel whose interface did not compile.
+
 ### Notes
 
 - `Sort`, not `Order`: `Order` is one of the commonest model names there is, and
@@ -68,6 +85,6 @@ All notable changes to Warder are recorded here. The format follows
 
 ### Not yet built
 
-- The routes, the Inertia interface and the bundled assets. `Admin.mount()`
-  checks and binds, then raises `NotConfigured` at the route-building step.
+- Inline editing inside child panels; MFA and impersonation are declarable but
+  not yet enforced.
 - `warder permissions sync` and `warder eject`.
