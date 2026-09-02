@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from fakes import Ctx, User, model
+from fakes import Ctx, Rows, User, model
 
 from warder.access import ACTIONS, Access, Gate, Role, Scope, current_user
 
@@ -353,3 +353,22 @@ def test_expand_survives_a_cycle():
 def test_expand_ignores_an_unknown_parent():
     role = Role("a", grants=["x"], inherits=["ghost"])
     assert role.expand({"a": role}) == frozenset({"x"})
+
+
+async def test_a_query_scope_that_returns_a_queryset_is_not_executed(rows, anyone):
+    # A queryset is *awaitable*: `await Post.filter(...)` runs the query and
+    # returns a list. Awaiting one here would turn the narrowed queryset into
+    # rows, and the next .filter() would fail somewhere else entirely.
+    narrowed = await Scope.query(lambda ctx, base: base.filter(a=1)).apply(anyone, rows)
+    assert isinstance(narrowed, Rows)
+    assert narrowed.filters == [{"a": 1}]
+
+
+async def test_a_resource_queryset_that_returns_a_queryset_is_not_executed(
+    rows, anyone
+):
+    from warder.resource import Resource
+
+    resource = Resource(model("Post"), queryset=lambda ctx, base: base.filter(a=1))
+    narrowed = await resource.rows(anyone, rows)
+    assert isinstance(narrowed, Rows)

@@ -37,6 +37,8 @@ import typing
 
 from sillo import responses
 
+from warder._async import resolved
+
 if typing.TYPE_CHECKING:
     from sillo import HttpContext
     from sillo.core.http.response import BaseResponse
@@ -78,10 +80,7 @@ class Prop:
         self.group = group
 
     async def value(self) -> typing.Any:
-        result = self.load()
-        if hasattr(result, "__await__"):
-            result = await result
-        return result
+        return await resolved(self.load())
 
 
 def optional(load: typing.Callable[[], typing.Any]) -> Prop:
@@ -153,8 +152,8 @@ async def render(
         return location(str(ctx.url))
 
     wanted = _partial(ctx, component)
-    resolved, deferred = await _resolve(props, wanted, first_visit=not wanted)
-    page = Page(component, resolved, str(ctx.url), version, deferred)
+    sent, deferred = await _resolve(props, wanted, first_visit=not wanted)
+    page = Page(component, sent, str(ctx.url), version, deferred)
 
     if is_inertia(ctx):
         return responses.json(
@@ -207,7 +206,7 @@ async def _resolve(
     first_visit: bool,
 ) -> tuple[dict[str, typing.Any], dict[str, list[str]]]:
     """Evaluate the props that are being sent, and name the ones that are not."""
-    resolved: dict[str, typing.Any] = {}
+    sent: dict[str, typing.Any] = {}
     deferred: dict[str, list[str]] = {}
 
     for name, value in props.items():
@@ -219,14 +218,13 @@ async def _resolve(
             if value.mode == "deferred" and first_visit:
                 deferred.setdefault(value.group, []).append(name)
                 continue
-            resolved[name] = await value.value()
+            sent[name] = await value.value()
             continue
         if callable(value):
-            result = value()
-            resolved[name] = await result if hasattr(result, "__await__") else result
+            sent[name] = await resolved(value())
             continue
-        resolved[name] = value
-    return resolved, deferred
+        sent[name] = value
+    return sent, deferred
 
 
 def _embed(page: Page) -> str:

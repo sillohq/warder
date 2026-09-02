@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import typing
 
+from warder._async import resolved
 from warder._check import identifier, sequence
 from warder.access import ACTIONS, Access, Scope
 from warder.base import Declaration
@@ -208,9 +209,7 @@ class Resource(Declaration):
         """
         narrowed = base
         if self.queryset is not None:
-            narrowed = self.queryset(ctx, narrowed)
-            if hasattr(narrowed, "__await__"):
-                narrowed = await narrowed
+            narrowed = await resolved(self.queryset(ctx, narrowed))
         if self.scope is not None:
             narrowed = await self.scope.apply(ctx, narrowed)
         return narrowed
