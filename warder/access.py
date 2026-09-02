@@ -88,15 +88,53 @@ async def holds_permission(ctx: typing.Any, name: str) -> bool:
 def current_user(ctx: typing.Any) -> typing.Any:
     """The signed-in user, or ``None``.
 
+    Warder's own backend resolves the account once per request and leaves it
+    here, so a page asking forty access questions makes one query. Failing
+    that, the application's own ``ctx.user`` — which is what makes a shared
+    session work with no translation layer.
+    """
+    state = request_state(ctx)
+    if "warder.user" in state:
+        return state["warder.user"]
+    return context_user(ctx)
+
+
+def context_user(ctx: typing.Any) -> typing.Any:
+    """The application's own signed-in user, or ``None``.
+
     ``ctx.user`` raises rather than returning ``None`` when no authentication
-    middleware is installed, and an admin asked "may this person view" before
-    login is a perfectly ordinary state — so the raise is turned back into the
-    answer the caller is looking for.
+    middleware is installed, and "may this person view" asked before anyone has
+    signed in is a perfectly ordinary state — so the raise is turned back into
+    the answer the caller is looking for.
     """
     try:
         return ctx.user
-    except (AttributeError, ValueError, LookupError):
+    except (AttributeError, ValueError, LookupError, AssertionError):
         return None
+
+
+def request_state(ctx: typing.Any) -> dict[str, typing.Any]:
+    """The dictionary behind this request's state, whatever wraps it.
+
+    Sillo's ``State`` keeps its values in an inner ``_state`` dict and exposes
+    them by attribute, so ``__dict__`` holds the wrapper rather than the
+    values. Writing there looks like it works and reads back nothing — which
+    is a cache that silently never hits.
+
+    Returns a throwaway dict when there is no state at all, so a caller can
+    always write and the worst case is doing the work twice.
+    """
+    try:
+        state = ctx.state
+    except (AttributeError, ValueError, LookupError, AssertionError):
+        return {}
+    if isinstance(state, dict):
+        return state
+    inner = getattr(state, "_state", None)
+    if isinstance(inner, dict):
+        return inner
+    store = getattr(state, "__dict__", None)
+    return store if isinstance(store, dict) else {}
 
 
 # --------------------------------------------------------------------- Gate

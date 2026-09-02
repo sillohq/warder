@@ -10,42 +10,56 @@ pip install warder
 
 ```python
 from warder import (
-    Access, Action, Admin, Column, Field, Filter, Form, List,
-    Resource, Section, Sort, notice,
+    Access,
+    Action,
+    Admin,
+    Column,
+    Field,
+    Filter,
+    Form,
+    List,
+    Resource,
+    Section,
+    Sort,
+    notice,
 )
 
 admin = Admin(title="Acme Ops", prefix="/admin")
 
-admin.add(Resource(
-    Post,
-    group="Content", icon="file-text",
-
-    list=List(
-        Column("title", link=True),
-        Column.relation("author", display="email"),
-        Column.badge("status", colors={"live": "green", "draft": "zinc"}),
-        Column.date("published_at", label="Published", style="relative"),
-        Column.compute("Words", lambda row: len(row.body.split()), sort="word_count"),
-
-        filters=[
-            Filter.search("title", "body"),
-            Filter.choice("status", ["draft", "live"]),
-            Filter.date_range("published_at", presets=["7d", "30d", "quarter"]),
-        ],
-        actions=[Action("Publish", publish, confirm="Publish {count} posts?")],
-        sort=Sort.desc("published_at"),
-    ),
-
-    form=Form(
-        Section("Content", Field("title"), Field.markdown("body")),
-        Section("Publishing", Field("status"), Field("published_at")),
-        Section("Audit", Field.readonly("created_at"), collapsed=True),
-    ),
-
-    access=Access(view=True, add="post.add",
-                  change=lambda ctx, row: row.author_id == ctx.user.id,
-                  delete=False),
-))
+admin.add(
+    Resource(
+        Post,
+        group="Content",
+        icon="file-text",
+        list=List(
+            Column("title", link=True),
+            Column.relation("author", display="email"),
+            Column.badge("status", colors={"live": "green", "draft": "zinc"}),
+            Column.date("published_at", label="Published", style="relative"),
+            Column.compute(
+                "Words", lambda row: len(row.body.split()), sort="word_count"
+            ),
+            filters=[
+                Filter.search("title", "body"),
+                Filter.choice("status", ["draft", "live"]),
+                Filter.date_range("published_at", presets=["7d", "30d", "quarter"]),
+            ],
+            actions=[Action("Publish", publish, confirm="Publish {count} posts?")],
+            sort=Sort.desc("published_at"),
+        ),
+        form=Form(
+            Section("Content", Field("title"), Field.markdown("body")),
+            Section("Publishing", Field("status"), Field("published_at")),
+            Section("Audit", Field.readonly("created_at"), collapsed=True),
+        ),
+        access=Access(
+            view=True,
+            add="post.add",
+            change=lambda ctx, row: row.author_id == ctx.user.id,
+            delete=False,
+        ),
+    )
+)
 
 admin.mount(app)
 ```
@@ -69,7 +83,7 @@ question is about the model rather than one row.
 
 ```python
 Access(change=lambda ctx, row: row.team_id == ctx.user.team_id)
-Gate.custom(lambda ctx: ctx.user.email.endswith("@acme.com"))   # gates see no row
+Gate.custom(lambda ctx: ctx.user.email.endswith("@acme.com"))  # gates see no row
 ```
 
 ### A declaration is a value
@@ -81,11 +95,13 @@ registration by import side effect.
 ```python
 def reference_data(model, *fields):
     return Resource(
-        model, group="Reference",
+        model,
+        group="Reference",
         list=List(*[Column(f) for f in fields], sort=Sort.asc(fields[0])),
         form=Form(Section("", *[Field(f) for f in fields])),
         access=Access.by_permission("reference", delete=False),
     )
+
 
 for model in (Tag, Category, Region, Currency):
     admin.add(reference_data(model, "name", "slug"))
@@ -97,7 +113,7 @@ a shared base cannot be edited by its fortieth user:
 ```python
 BASE = List(Column("id"), Column("name"), per_page=50)
 
-admin.add(Resource(Tag,  list=BASE.with_(Column("slug"))))
+admin.add(Resource(Tag, list=BASE.with_(Column("slug"))))
 admin.add(Resource(Team, list=BASE.with_(Column.relation("owner"))))
 ```
 
@@ -106,6 +122,7 @@ over your own queryset, inside your own layout:
 
 ```python
 ORDERS = List(Column("id"), Column.money("total"), Column.badge("status"))
+
 
 @app.get("/team/orders")
 async def team_orders(ctx: HttpContext):
@@ -184,8 +201,8 @@ They really are different questions, and one answer does not cover the others.
 admin = Admin(
     title="Acme Ops",
     auth=Auth(
-        users=User,                       # your model; omit for the bundled one
-        gate=Gate.staff(),                # who may enter at all
+        users=User,  # your model; omit for the bundled one
+        gate=Gate.staff(),  # who may enter at all
         session=Session(idle="30m", absolute="12h", concurrent=1),
         login=Login(throttle="5/15m", remember=True),
         mfa=MFA.totp(required=Gate.role("owner")),
@@ -306,7 +323,7 @@ range; every writable column on the form with the timestamps collapsed into an
 Audit group; and a window onto each child table.
 
 ```python
-admin.add(Resource(Post))          # a working list, form and detail page
+admin.add(Resource(Post))  # a working list, form and detail page
 admin.add(Resource(Post, sort="-published_at", search=["title", "body"]))
 ```
 

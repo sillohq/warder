@@ -499,10 +499,18 @@ async def test_a_wrong_password_says_nothing_useful(posts):
     assert props["errors"]["__all__"] == "Those details did not match."
 
 
-async def test_signing_in_with_no_backend_says_so(posts):
+async def test_an_admin_with_no_backend_still_has_one(posts):
+    # `Admin()` with no auth= signs people in against the bundled user model.
+    # There is no "no backend configured" state to report.
+    from warder.backends import SessionAuth
+
+    assert isinstance(Auth().resolve(), SessionAuth)
+
+
+async def test_a_blank_sign_in_is_refused(posts):
     admin = site(Resource(Post), auth=Auth(gate=Gate.never()))
     props = page_of(await _post(client(admin), "/admin/login", json={}))["props"]
-    assert "No authentication backend" in props["errors"]["__all__"]
+    assert props["errors"]["__all__"] == "Those details did not match."
 
 
 async def test_an_already_admitted_visitor_is_sent_onward(posts):

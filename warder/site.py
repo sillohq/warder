@@ -62,6 +62,8 @@ class Admin:
         footer: str | None = None,
         timezone: str | None = None,
         assets: str = "full",
+        sessions: bool = True,
+        secret: str | None = None,
         name: str = "warder",
     ) -> None:
         if not prefix.startswith("/"):
@@ -76,6 +78,12 @@ class Admin:
         self.footer = footer
         self.timezone = timezone
         self.assets = assets
+        #: Whether `mount` installs session middleware when the application has
+        #: none. A sign-in page without a session is a form that forgets you.
+        self.sessions = sessions
+        #: Signs the session cookie. Falls back to WARDER_SECRET_KEY, then
+        #: SILLO_SECRET_KEY, then a random one with a warning.
+        self.secret = secret
         self.name = identifier("Admin name", name)
 
         #: Declared group order. Groups not named here follow, alphabetically.

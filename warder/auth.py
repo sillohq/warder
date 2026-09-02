@@ -47,6 +47,10 @@ from warder.base import Declaration
 
 __all__ = ["MFA", "Audit", "Auth", "Impersonation", "Login", "Session"]
 
+#: Backends built for an `Auth` that did not bring one, keyed by identity so
+#: the throttle inside survives between requests.
+_BACKENDS: dict[int, typing.Any] = {}
+
 
 class Session(Declaration):
     """How long a signed-in session lasts, and how many you may hold.
@@ -415,6 +419,34 @@ class Auth(Declaration):
             roles=tuple(roles),
         )
 
+    def resolve(self) -> typing.Any:
+        """The backend this admin authenticates through.
+
+        Built once and cached on the value, because the throttle it carries
+        has to be the *same* throttle across requests — a fresh one per request
+        counts to one and never blocks anything.
+        """
+        if self.backend is not None:
+            return self.backend
+        cached = _BACKENDS.get(id(self))
+        if cached is None:
+            from warder.backends import SessionAuth
+
+            cached = _BACKENDS[id(self)] = SessionAuth(self.users, policy=self)
+        return cached
+
+    async def user(self, ctx: typing.Any) -> typing.Any:
+        """The signed-in account, through whichever backend is in use."""
+        backend = self.resolve()
+        current = getattr(backend, "current", None)
+        if current is not None:
+            return await current(ctx)
+        # A backend that predates `current` -- or somebody's own three-method
+        # object -- still works: fall back to the context's own user.
+        from warder.access import context_user
+
+        return context_user(ctx)
+
     @property
     def role_map(self) -> dict[str, Role]:
         return {role.name: role for role in self.roles}
@@ -426,7 +458,16 @@ class Auth(Declaration):
         return role.expand(roles) if role else frozenset()
 
     async def may_enter(self, ctx: typing.Any) -> bool:
-        """Whether this person is allowed into the admin at all."""
+        """Whether this person is allowed into the admin at all.
+
+        The account is resolved first and cached on the request, so the gate,
+        every resource's access rule and every field's rule all read one user
+        loaded once.
+        """
+        from warder.access import request_state
+        from warder.backends import STATE_KEY
+
+        request_state(ctx)[STATE_KEY] = await self.user(ctx)
         return await self.gate.allows(ctx)
 
     def __repr__(self) -> str:

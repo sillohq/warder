@@ -21,7 +21,10 @@ full document for a fresh tab, with the same props either way.
 
 from __future__ import annotations
 
+import os
+import secrets
 import typing
+import warnings
 
 from sillo import responses
 from sillo.core.routing import Group, Route
@@ -47,12 +50,84 @@ FLASH = "_warder_flash"
 
 
 def build(admin: Admin, app: typing.Any) -> None:
-    """Register the admin on *app*: its assets, then its routes."""
+    """Register the admin on *app*: sessions, then assets, then routes."""
     assets = Assets()
     admin.bundle = assets
+    _ensure_sessions(admin, app)
     _mount_assets(admin, app)
     for route in routes(admin, assets):
         app.router.add_route(route)
+
+
+def _ensure_sessions(admin: Admin, app: typing.Any) -> None:
+    """Install session middleware if the application has none.
+
+    The admin owns a sign-in page, and a sign-in page without a session is a
+    form that forgets you. Mounting one on an application that has not thought
+    about sessions yet should work, so this adds the middleware rather than
+    failing at the first login with a message about middleware.
+
+    An application that already installed its own is left alone — that is the
+    shared-session arrangement, and replacing it would sign everybody out.
+    """
+    if not admin.sessions:
+        return
+    try:
+        from sillo.session import SessionConfig, SessionMiddleware
+    except ImportError:  # pragma: no cover - sessions ship with the framework
+        return
+
+    installed = getattr(app, "middleware_stack", None) or getattr(
+        app, "_middleware", ()
+    )
+    for entry in installed or ():
+        if type(entry).__name__ == "SessionMiddleware":
+            return
+
+    policy = admin.auth.session
+    app.use(
+        SessionMiddleware(
+            config=SessionConfig(
+                session_cookie_name=policy.cookie,
+                session_cookie_secure=policy.secure,
+                session_cookie_httponly=True,
+                session_cookie_samesite=policy.same_site,
+                # The cookie outlives the absolute lifetime by a minute, so the
+                # *server* is what ends a session. A cookie that vanishes on its
+                # own gives you a login page and no explanation; the backend can
+                # at least say why.
+                session_expiration_time=int(policy.absolute or 43200) + 60,
+            ),
+            secret_key=session_secret(admin),
+        )
+    )
+
+
+def session_secret(admin: Admin) -> str:
+    """The key session cookies are signed with.
+
+    From ``Admin(secret=)``, then ``WARDER_SECRET_KEY``, then
+    ``SILLO_SECRET_KEY``. Failing all three a random one is generated and said
+    so out loud: it works, and every restart signs everybody out — which is
+    fine on a laptop and is not a thing to discover in production from a
+    support ticket.
+    """
+    given = (
+        admin.secret
+        or os.environ.get("WARDER_SECRET_KEY")
+        or os.environ.get("SILLO_SECRET_KEY")
+    )
+    if given:
+        return given
+
+    warnings.warn(
+        "Warder generated a random session key, so every restart signs "
+        "everyone out. Set WARDER_SECRET_KEY, or pass Admin(secret=...), "
+        "before deploying this.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+    return secrets.token_urlsafe(48)
 
 
 def _mount_assets(admin: Admin, app: typing.Any) -> None:
@@ -283,32 +358,31 @@ class _Site:
                 return responses.redirect(self.admin.prefix, status_code=302)
             return await self.render(ctx, "Login", self._login_props())
 
-        backend = self.admin.auth.backend
-        if backend is None:
-            return await self.render(
-                ctx,
-                "Login",
-                self._login_props(
-                    errors={"__all__": "No authentication backend is configured."}
-                ),
-            )
+        backend = self.admin.auth.resolve()
         payload = await _payload(ctx)
         identity = str(payload.get(self.admin.auth.login.field) or "")
         secret = str(payload.get("password") or "")
+
         if await backend.login(ctx, identity, secret):
             return inertia.redirect(ctx, self.admin.prefix)
-        # One message for a wrong name and a wrong password, so the form cannot
-        # be used to find out which accounts exist.
+
+        # One message for a wrong name, a wrong password and an account that
+        # does not exist, so the form cannot be used to find out which accounts
+        # do. The only thing worth distinguishing is being locked out, because
+        # otherwise you keep trying a password that is already correct.
+        wait = getattr(backend, "wait", None)
+        seconds = wait(ctx, identity) if wait else 0
+        message = (
+            f"Too many attempts. Try again in {seconds}s."
+            if seconds
+            else "Those details did not match."
+        )
         return await self.render(
-            ctx,
-            "Login",
-            self._login_props(errors={"__all__": "Those details did not match."}),
+            ctx, "Login", self._login_props(errors={"__all__": message})
         )
 
     async def logout(self, ctx: HttpContext, **_params: typing.Any) -> BaseResponse:
-        backend = self.admin.auth.backend
-        if backend is not None:
-            await backend.logout(ctx)
+        await self.admin.auth.resolve().logout(ctx)
         return inertia.redirect(ctx, f"{self.admin.prefix}/login", status=303)
 
     # ------------------------------------------------------------------ list

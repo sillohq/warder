@@ -74,7 +74,7 @@ def test_something_that_is_not_an_admin_is_reported(capsys):
 
 def test_no_command_prints_the_help(capsys):
     assert main([]) == 0
-    assert "Check and inspect a Warder admin." in capsys.readouterr().out
+    assert "Check, inspect and open a Warder admin." in capsys.readouterr().out
 
 
 def test_version_is_reported(capsys):
@@ -84,3 +84,27 @@ def test_version_is_reported(capsys):
         main(["--version"])
     assert exit_.value.code == 0
     assert __version__ in capsys.readouterr().out
+
+
+def test_the_routes_are_listed(capsys):
+    assert main(["routes", "demo_admin:admin"]) == 0
+    printed = capsys.readouterr().out
+    assert "/admin/post" in printed
+    assert "/admin/login" in printed
+
+
+def test_routes_reports_a_broken_declaration(capsys):
+    assert main(["routes", "demo_admin:broken"]) == 1
+    assert "is not a field of Post" in capsys.readouterr().err
+
+
+def test_create_admin_needs_a_mounted_application(capsys):
+    # It writes to the database the application configured rather than asking
+    # for a URL, so an unmounted admin has nowhere to write.
+    assert (
+        main(
+            ["create-admin", "demo_admin:admin", "--email", "a@b.c", "--password", "x"]
+        )
+        == 2
+    )
+    assert "Could not find the database" in capsys.readouterr().err
