@@ -40,6 +40,13 @@ classifiers = [
 # at the first request instead of at install time.
 dependencies = ["sillo-framework>=1.0"]
 
+# `>=1.0` cannot resolve against PyPI yet, so uv-based dev and CI take the
+# framework from the branch that *is* 1.0 (its metadata still says 0.3.x).
+# This is dev-only — it is not written into the built wheel. Drop it once 1.0
+# publishes.
+[tool.uv.sources]
+sillo-framework = { git = "https://github.com/sillohq/core.git", branch = "main" }
+
 [project.urls]
 Homepage = "https://sillo.build"
 Documentation = "https://docs.sillo.build/packages/warder/"
