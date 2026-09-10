@@ -1,0 +1,104 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'warder-v*'
+
+# The v1 context/response API is not on PyPI yet; the branch that is 1.0 still
+# calls itself 0.3.x in its metadata. Install it from the branch, then this
+# package with --no-deps.
+env:
+  FRAMEWORK: "sillo-framework @ git+https://github.com/sillohq/core.git@main"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      # Trusted publishing, used when PYPI_TOKEN is not set.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Read the tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#warder-v}" >> "$GITHUB_OUTPUT"
+
+      # Three places carry the version; a release that reports one it is not is
+      # worse than one that fails to build.
+      - name: The tag, pyproject.toml and __version__ must agree
+        run: |
+          tag='${{ steps.version.outputs.version }}'
+          project=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
+          module=$(grep -m1 '^__version__' warder/__init__.py | cut -d'"' -f2)
+
+          echo "tag=$tag pyproject=$project module=$module"
+
+          if [ "$tag" != "$project" ] || [ "$tag" != "$module" ]; then
+            echo "These disagree. Bump all three and tag again."
+            exit 1
+          fi
+
+      - name: Build the interface
+        run: npm ci && npm run build
+        working-directory: ui
+
+      - name: Install
+        run: |
+          uv venv
+          uv pip install "$FRAMEWORK"
+          uv pip install "tortoise-orm>=0.21" httpx bcrypt
+          uv pip install pytest pytest-asyncio pytest-cov
+          uv pip install -e . --no-deps
+
+      - name: Test
+        run: uv run pytest -q
+
+      # build_ui.py runs Vite as part of this and fails the build if no
+      # manifest comes out, because a wheel without its interface installs
+      # cleanly and renders a blank page.
+      - name: Build
+        run: uv build
+
+      # The React sources are in the repository and never in the wheel;
+      # installing an admin panel is not signing up to run Vite.
+      - name: The wheel carries the interface, not the sources
+        run: |
+          python - <<'PY'
+          import glob
+          import zipfile
+
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+
+          assert not any(n.startswith("ui/") for n in names), "ui/ leaked into the wheel"
+          assert not any(n.endswith("package.json") for n in names), "npm files in the wheel"
+          assert "warder/py.typed" in names, "py.typed is missing"
+          assert "warder/static/manifest.json" in names, "the interface is missing"
+          assert any(n.endswith(".js") for n in names), "no bundle in the wheel"
+          assert any(n.endswith(".css") for n in names), "no stylesheet in the wheel"
+          print("wheel carries py.typed and the built interface, no UI sources")
+          PY
+
+      - name: Publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          if [ -n "$UV_PUBLISH_TOKEN" ]; then
+            uv publish
+          else
+            uv publish --trusted-publishing always
+          fi

@@ -8,6 +8,13 @@ All notable changes to Warder are recorded here. The format follows
 
 ### Added
 
+- **A `release` workflow.** Pushing a `warder-v<version>` tag checks the tag,
+  `pyproject.toml` and `warder.__version__` agree, builds the React interface,
+  runs the suite against the framework's `main` branch, builds the wheel,
+  verifies it carries `py.typed` and the compiled interface but none of the UI
+  sources, and publishes (trusted publishing, or `PYPI_TOKEN`).
+- CI now also runs on pushes to `master` (the current default branch), not
+  only `main`.
 - **The declaration layer.** Every screen, column, filter, action, permission
   and theme is a frozen value: comparable, printable, generatable in a loop, and
   extendable with `.with_()`, which appends parts and replaces keywords rather
