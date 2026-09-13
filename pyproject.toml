@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "warder"
-version = "1.0.0a1"
+version = "1.0.0a2"
 description = "A declarative admin for Sillo. Declarations are values, not class attributes, and a type annotation never selects behaviour."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -38,7 +38,7 @@ classifiers = [
 # The pin is left honest rather than loosened to `>=0.3`: the released 0.x has
 # no `sillo.responses` at all, so a wheel that installed against it would fail
 # at the first request instead of at install time.
-dependencies = ["sillo-framework>=1.0"]
+dependencies = ["sillo-framework>=1.0.0a1"]
 
 # `>=1.0` cannot resolve against PyPI yet, so uv-based dev and CI take the
 # framework from the branch that *is* 1.0 (its metadata still says 0.3.x).

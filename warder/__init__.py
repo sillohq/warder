@@ -83,7 +83,7 @@ from warder.sorting import Sort, SortTerm
 from warder.theme import Theme
 from warder.widgets import Widget
 
-__version__ = "1.0.0a1"
+__version__ = "1.0.0a2"
 
 __all__ = [
     "MFA",
