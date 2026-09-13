@@ -6,6 +6,31 @@ All notable changes to Warder are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0a1] - 2026-09-13
+
+First alpha, released alongside `sillo-framework` 1.0.0a1. Install with
+`pip install --pre warder==1.0.0a1`.
+
+Warder is the admin that used to be `sillo.admin` inside the framework. It is
+its own package now, and its declarations are values rather than class
+attributes on a `ModelAdmin` subclass:
+
+```python
+admin = Admin(title="Ops", prefix="/admin", auth=Auth(users=User))
+admin.add(Resource(User, list=List(Column("email", link=True))))
+admin.mount(app)
+```
+
+An alpha: this is what 1.0 is expected to look like, but the API is not frozen.
+
+### Note
+
+`Admin(sessions=True)` is the default and installs a session middleware. An
+application that already installs one of its own should pass `sessions=False` —
+two sessions on two cookies means the one that wins is whichever middleware is
+outermost, and the symptom is a login that succeeds followed by a 401 from the
+next request.
+
 ### Added
 
 - **A `release` workflow.** Pushing a `warder-v<version>` tag checks the tag,
