@@ -774,14 +774,19 @@ wheels = [
 
 [[package]]
 name = "sillo-framework"
-version = "0.3.2.dev1"
-source = { git = "https://github.com/sillohq/core.git?branch=main#cd4c5068d4bbbad3fcbfad9719d3403cc34378b2" }
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "pydantic" },
     { name = "python-multipart" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
     { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/6c/9bb50c1ac20bdfc39d04faf646815b6887305b6e31f1905f53584a2418b7/sillo_framework-1.0.0.tar.gz", hash = "sha256:6195d393d73b0acc1054d917118e48ffb81d497363c6051ef4718b0f0d3b8c3a", size = 1085624, upload-time = "2026-09-26T20:35:24.73Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/dd/83af8abfd83c67cb4004068744899f4502ccbccf9c629cd3f365f5eeb7a3/sillo_framework-1.0.0-py3-none-any.whl", hash = "sha256:1a0ae4e2121da3df62045309600ad7f9ca8e325823c187cbaafa8037e6d86ee9", size = 792912, upload-time = "2026-09-26T20:35:22.834Z" },
 ]
 
 [package.optional-dependencies]
@@ -791,14 +796,14 @@ record = [
 
 [[package]]
 name = "sillo-inertia"
-version = "0.1.0.dev1"
+version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "sillo-framework", extra = ["record"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/41/218084d27b62e820b81b3cd2dc9a7cd6034046a78c4af8fad3c262e8e358/sillo_inertia-0.1.0.dev1.tar.gz", hash = "sha256:c115adacf3d322f56dbd3b8fa058b6cd6d8f18b962019790f29e9784b7357a90", size = 112939, upload-time = "2026-09-07T09:23:11.307Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/80/9f75d0848f9e986692c2d91151b1353d0735457fc307fecb6259e1192203/sillo_inertia-1.0.0.tar.gz", hash = "sha256:f88c926a10280c7c44a5a6cab431c467ada8b4638ff81174cb20664231ad039a", size = 112653, upload-time = "2026-09-26T20:43:49.064Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/4c/4926019ebec4cafc5bebbed3154d74b9dc8731ecf8b1c99dc0ec5def67c0/sillo_inertia-0.1.0.dev1-py3-none-any.whl", hash = "sha256:c01301ee6641344326145ea7ba80113674368e282f464e7af4dd9b9e05031453", size = 24006, upload-time = "2026-09-07T09:23:10.117Z" },
+    { url = "https://files.pythonhosted.org/packages/33/41/6c6063ea56103eed308ee0b318d138c13a9ff1be5c1fab68823f9a0147a2/sillo_inertia-1.0.0-py3-none-any.whl", hash = "sha256:f02cb6827dbff96f1f490dd90ac44434568003a81a687f9225f23cfe5cf5efc3", size = 23800, upload-time = "2026-09-26T20:43:47.961Z" },
 ]
 
 [[package]]
@@ -918,7 +923,7 @@ wheels = [
 
 [[package]]
 name = "warder"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "sillo-framework" },
@@ -943,7 +948,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
-    { name = "sillo-framework", git = "https://github.com/sillohq/core.git?branch=main" },
-    { name = "sillo-inertia", marker = "extra == 'ui'", specifier = ">=0.0.1a4" },
+    { name = "sillo-framework", specifier = ">=1.0.0" },
+    { name = "sillo-inertia", marker = "extra == 'ui'", specifier = ">=1.0.0" },
 ]
 provides-extras = ["ui", "dev"]

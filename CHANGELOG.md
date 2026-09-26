@@ -6,6 +6,10 @@ All notable changes to Warder are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-26
+
+Stable Sillo 1.0 release of the declarative admin package.
+
 ## [1.0.0a1] - 2026-09-13
 
 First alpha, released alongside `sillo-framework` 1.0.0a1. Install with

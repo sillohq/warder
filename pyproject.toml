@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "warder"
-version = "1.0.0a2"
+version = "1.0.0"
 description = "A declarative admin for Sillo. Declarations are values, not class attributes, and a type annotation never selects behaviour."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["sillo", "admin", "crud", "declarative", "orm", "asgi", "inertia"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: AsyncIO",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
@@ -28,24 +28,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 # Warder is written against the **context API** — `HttpContext`, `ctx`-first
-# handlers, and the free builders in `sillo.responses`. That is Sillo v1, which
-# is on the framework's `main` branch and not yet on PyPI, so this pin will not
-# resolve until v1 ships. Until then, install the framework from git first:
-#
-#     pip install "sillo-framework @ git+https://github.com/sillohq/core@main"
-#     pip install warder --no-deps
-#
-# The pin is left honest rather than loosened to `>=0.3`: the released 0.x has
-# no `sillo.responses` at all, so a wheel that installed against it would fail
-# at the first request instead of at install time.
-dependencies = ["sillo-framework>=1.0.0a1"]
-
-# `>=1.0` cannot resolve against PyPI yet, so uv-based dev and CI take the
-# framework from the branch that *is* 1.0 (its metadata still says 0.3.x).
-# This is dev-only — it is not written into the built wheel. Drop it once 1.0
-# publishes.
-[tool.uv.sources]
-sillo-framework = { git = "https://github.com/sillohq/core.git", branch = "main" }
+# handlers, and the free builders in `sillo.responses`.
+dependencies = ["sillo-framework>=1.0.0"]
 
 [project.urls]
 Homepage = "https://sillo.build"
@@ -56,7 +40,7 @@ Changelog = "https://github.com/sillohq/warder/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 # The Inertia transport for the React interface. Optional because the
 # declarations, the resolver and `admin.render` are useful without it.
-ui = ["sillo-inertia>=0.0.1a4"]
+ui = ["sillo-inertia>=1.0.0"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
